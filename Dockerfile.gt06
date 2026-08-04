@@ -1,0 +1,26 @@
+# GT06 ingest — use with service "gt06-ingest" (Config file path: services/gt06-ingest/railway.toml)
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY services/gt06-ingest/package.json services/gt06-ingest/
+RUN npm ci -w @frota/shared -w @frota/gt06-ingest --include-workspace-root
+COPY packages/shared packages/shared
+COPY services/gt06-ingest services/gt06-ingest
+RUN npm run build -w @frota/shared
+RUN npm run build -w @frota/gt06-ingest
+
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY services/gt06-ingest/package.json services/gt06-ingest/
+RUN npm ci -w @frota/shared -w @frota/gt06-ingest --include-workspace-root --omit=dev
+COPY --from=builder /app/packages/shared/dist packages/shared/dist
+COPY --from=builder /app/services/gt06-ingest/dist services/gt06-ingest/dist
+WORKDIR /app/services/gt06-ingest
+ENV GT06_HOST=0.0.0.0
+ENV GT06_PORT=5023
+EXPOSE 5023
+CMD ["node", "dist/index.js"]

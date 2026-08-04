@@ -1,0 +1,9 @@
+# Serviço Frota (web) — Dockerfile na raiz do monorepo
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/login"
+healthcheckTimeout = 120
