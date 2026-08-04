@@ -1,0 +1,22 @@
+{
+  "name": "frota",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev -w @frota/api",
+    "dev:gt06": "npm run dev -w @frota/gt06-ingest",
+    "dev:web": "npm run dev -w @frota/web",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run db:generate -w @frota/api",
+    "db:migrate": "npm run db:migrate -w @frota/api",
+    "db:push": "npm run db:push -w @frota/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

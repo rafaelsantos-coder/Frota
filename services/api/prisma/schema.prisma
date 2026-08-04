@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  UNKNOWN
+}
+
+enum PositionSource {
+  GT06
+  JIMI
+}
+
+enum AlertSource {
+  GT06
+  JIMI
+}
+
+model Vehicle {
+  id             String       @id @default(cuid())
+  plate          String       @unique
+  label          String
+  trackerImei    String?      @unique
+  cameraDeviceId String?      @unique
+  cameraModel    String?
+  trackerStatus  DeviceStatus @default(UNKNOWN)
+  cameraStatus   DeviceStatus @default(UNKNOWN)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  positions Position[]
+  alerts    Alert[]
+}
+
+model JimiIntegration {
+  id        String   @id @default(cuid())
+  label     String   @default("Jimi IoT Hub")
+  appKey    String?
+  appSecret String?
+  pushUrl   String?
+  apiBaseUrl String  @default("https://hk-open.tracksolidpro.com/route/rest")
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Gt06Integration {
+  id        String   @id @default(cuid())
+  label     String   @default("Servidor GT06")
+  host      String   @default("0.0.0.0")
+  port      Int      @default(5023)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Position {
+  id         String         @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  source     PositionSource
+  latitude   Float
+  longitude  Float
+  speedKmh   Float?
+  course     Float?
+  recordedAt DateTime
+  createdAt  DateTime       @default(now())
+
+  @@index([vehicleId, recordedAt(sort: Desc)])
+  @@index([recordedAt(sort: Desc)])
+}
+
+model Alert {
+  id        String      @id @default(cuid())
+  vehicleId String?
+  vehicle   Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  source    AlertSource
+  type      String
+  label     String
+  payload   Json        @default("{}")
+  createdAt DateTime    @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([vehicleId])
+}
+
+model TrackerSession {
+  imei       String   @id
+  connected  Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  remoteIp   String?
+  updatedAt  DateTime @updatedAt
+}
