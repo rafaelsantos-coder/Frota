@@ -14,7 +14,12 @@
     "build": "npm run build --workspaces --if-present",
     "db:generate": "npm run db:generate -w @frota/api",
     "db:migrate": "npm run db:migrate -w @frota/api",
-    "db:push": "npm run db:push -w @frota/api"
+    "db:push": "npm run db:push -w @frota/api",
+    "railway:whoami": "npx @railway/cli whoami",
+    "railway:link": "npx @railway/cli link",
+    "railway:deploy:api": "npx @railway/cli up --service api",
+    "railway:deploy:gt06": "npx @railway/cli up --service gt06-ingest",
+    "railway:deploy:web": "npx @railway/cli up --service web"
   },
   "engines": {
     "node": ">=20"

@@ -1,0 +1,6 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "services/gt06-ingest/Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"

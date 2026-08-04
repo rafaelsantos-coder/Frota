@@ -114,6 +114,23 @@ Frota/
 - OAuth Jimi automático quando credenciais estiverem ativas
 - Deploy cloud (API + GT06 TCP + webhooks públicos)
 
+## Deploy no Railway
+
+Guia completo: [`docs/railway-deploy.md`](docs/railway-deploy.md)
+
+Serviços: **postgres** + **api** (HTTP) + **gt06-ingest** (TCP proxy :5023) + **web** (painel).
+
+```powershell
+$env:RAILWAY_TOKEN = "seu-project-token"
+npm run railway:whoami
+npm run railway:link
+npm run railway:deploy:api
+npm run railway:deploy:gt06
+npm run railway:deploy:web
+```
+
+Credenciais Jimi continuam no painel **Integrações** — não vão para variáveis Railway.
+
 ## Licença
 
 Projeto privado — uso interno.
