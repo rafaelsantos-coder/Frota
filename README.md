@@ -1,8 +1,10 @@
-# Frota — Plataforma de Gestão de Frotas (Produção)
+# Sulnet Gestão de Frota
 
 Sistema completo na nuvem: **login com usuário e senha**, banco PostgreSQL, rastreador GT06, câmera Jimi JC371.
 
 **Deploy:** [Railway](https://railway.com) — guia em [`docs/railway-deploy.md`](docs/railway-deploy.md)
+
+Repositório: [github.com/rafaelsantos-coder/Frota](https://github.com/rafaelsantos-coder/Frota)
 
 ## O que o sistema inclui
 
@@ -26,7 +28,7 @@ Sistema completo na nuvem: **login com usuário e senha**, banco PostgreSQL, ras
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 JWT_SECRET=<secret-forte>
-ADMIN_EMAIL=admin@suaempresa.com
+ADMIN_EMAIL=admin@sulnet.com
 ADMIN_PASSWORD=<senha-forte>
 INTERNAL_API_SECRET=<secret-forte>
 ```
@@ -48,7 +50,7 @@ NEXT_PUBLIC_API_URL=https://sua-api.up.railway.app
 
 ```
 Frota/
-├── apps/web/              # Painel Next.js + login
+├── apps/web/              # Painel Sulnet + login
 ├── services/api/          # API + auth + Prisma
 ├── services/gt06-ingest/  # TCP GT06
 ├── packages/shared/
@@ -57,4 +59,4 @@ Frota/
 
 ## Licença
 
-Projeto privado — uso interno.
+Projeto privado — Sulnet.

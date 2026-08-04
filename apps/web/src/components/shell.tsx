@@ -17,8 +17,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1>Frota</h1>
-        <p>GT06 + Jimi JC371</p>
+        <h1>Sulnet</h1>
+        <p>Gestão de Frota</p>
         <nav className="nav">
           {links.map((link) => (
             <Link

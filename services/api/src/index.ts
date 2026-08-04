@@ -27,7 +27,7 @@ await app.register(cors, {
 await app.register(jwt, { secret: jwtSecret });
 app.decorate("authenticate", authenticate);
 
-app.get("/health", async () => ({ status: "ok", service: "frota-api" }));
+app.get("/health", async () => ({ status: "ok", service: "sulnet-gestao-frota-api" }));
 
 await registerAuthRoutes(app);
 await registerVehicleRoutes(app);

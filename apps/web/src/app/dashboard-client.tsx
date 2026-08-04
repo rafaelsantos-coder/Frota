@@ -34,7 +34,7 @@ export function DashboardClient() {
     <>
       <div className="page-header">
         <h2>Dashboard</h2>
-        <p>Visão operacional da frota — Sprint 0</p>
+        <p>Visão operacional — Sulnet Gestão de Frota</p>
       </div>
 
       {error && <div className="panel">{error}</div>}

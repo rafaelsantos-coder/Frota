@@ -5,7 +5,7 @@ export async function getDefaultOrganization() {
   let org = await prisma.organization.findFirst({ where: { slug: "principal" } });
   if (!org) {
     org = await prisma.organization.create({
-      data: { name: "Frota Principal", slug: "principal" },
+      data: { name: "Sulnet", slug: "principal" },
     });
   }
   return org;
@@ -16,8 +16,8 @@ export async function ensureSeedData() {
 
   const userCount = await prisma.user.count();
   if (userCount === 0) {
-    const email = process.env.ADMIN_EMAIL ?? "admin@frota.local";
-    const password = process.env.ADMIN_PASSWORD ?? "Frota@2026";
+    const email = process.env.ADMIN_EMAIL ?? "admin@sulnet.com";
+    const password = process.env.ADMIN_PASSWORD ?? "Sulnet@2026";
     const name = process.env.ADMIN_NAME ?? "Administrador";
 
     await prisma.user.create({
@@ -32,7 +32,7 @@ export async function ensureSeedData() {
 
     console.log(`[seed] Admin criado: ${email}`);
     if (!process.env.ADMIN_PASSWORD) {
-      console.warn("[seed] ADMIN_PASSWORD não definido — usando senha padrão Frota@2026. Altere no Railway!");
+      console.warn("[seed] ADMIN_PASSWORD não definido — usando senha padrão Sulnet@2026. Altere no Railway!");
     }
   }
 

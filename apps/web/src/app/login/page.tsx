@@ -29,8 +29,8 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1>Frota</h1>
-        <p>Gestão de frotas — GT06 + Jimi JC371</p>
+        <h1>Sulnet</h1>
+        <p>Gestão de Frota — GT06 + Jimi JC371</p>
         <form onSubmit={handleSubmit} className="form-grid">
           <div className="form-row">
             <label htmlFor="email">E-mail</label>
@@ -39,7 +39,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@frota.com"
+              placeholder="admin@sulnet.com"
               required
               autoComplete="username"
             />
