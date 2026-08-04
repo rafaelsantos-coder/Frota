@@ -15,7 +15,7 @@ const server = net.createServer((socket) => {
   socket.on("data", (chunk) => {
     buffer = Buffer.concat([buffer, chunk]);
     const parsed = parsePackets(buffer);
-    buffer = parsed.remaining;
+    buffer = Buffer.from(parsed.remaining);
 
     for (const message of parsed.messages) {
       if (message.type === "login") {

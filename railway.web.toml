@@ -1,0 +1,14 @@
+# Config do serviço WEB (Frota) no Railway.
+# No painel Railway: serviço "Frota" → Settings → Config file = railway.web.toml
+#
+# Serviço API: use services/api/railway.toml
+# Serviço gt06-ingest: use services/gt06-ingest/railway.toml
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/login"
+healthcheckTimeout = 120

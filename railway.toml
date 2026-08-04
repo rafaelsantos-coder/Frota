@@ -1,4 +1,5 @@
 # Serviço Frota (web) — Dockerfile na raiz do monorepo
+# Monorepo: api → services/api/railway.toml | gt06 → services/gt06-ingest/railway.toml
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
