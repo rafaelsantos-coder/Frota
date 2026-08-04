@@ -1,3 +1,24 @@
+export type UserRole = "ADMIN" | "OPERATOR";
+
+export interface UserDto {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  organizationId: string;
+  organizationName: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: UserDto;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
 export type CameraModel = "JC371";
 
 export type DeviceStatus = "ONLINE" | "OFFLINE" | "UNKNOWN";

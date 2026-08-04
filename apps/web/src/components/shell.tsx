@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -11,6 +12,7 @@ const links = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <div className="layout">
@@ -28,6 +30,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+        <div className="sidebar-user">
+          <strong>{user?.name}</strong>
+          <span>{user?.email}</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={logout}>
+            Sair
+          </button>
+        </div>
       </aside>
       <main className="main">{children}</main>
     </div>

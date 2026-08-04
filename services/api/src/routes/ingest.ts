@@ -2,12 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import {
-  normalizeImei,
-  resolveVehicleByCameraId,
-  resolveVehicleByTrackerImei,
-  toAlertDto,
-  toPositionDto,
-} from "../lib/mappers.js";
+  findVehicleByCameraGlobally,
+  findVehicleByTrackerGlobally,
+} from "./integrations.js";
+import { toAlertDto, toPositionDto } from "../lib/mappers.js";
 
 const gt06PositionSchema = z.object({
   imei: z.string(),
@@ -36,8 +34,8 @@ export async function registerIngestRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    const imei = normalizeImei(parsed.data.imei);
-    const vehicle = await resolveVehicleByTrackerImei(imei);
+    const imei = parsed.data.imei.replace(/\D/g, "");
+    const vehicle = await findVehicleByTrackerGlobally(imei);
 
     await prisma.trackerSession.upsert({
       where: { imei },
@@ -84,7 +82,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     }
 
     const body = request.body as { imei: string; connected: boolean; remoteIp?: string };
-    const imei = normalizeImei(body.imei);
+    const imei = body.imei.replace(/\D/g, "");
 
     await prisma.trackerSession.upsert({
       where: { imei },
@@ -101,7 +99,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
       },
     });
 
-    const vehicle = await resolveVehicleByTrackerImei(imei);
+    const vehicle = await findVehicleByTrackerGlobally(imei);
     if (vehicle) {
       await prisma.vehicle.update({
         where: { id: vehicle.id },
@@ -115,7 +113,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
 
 export async function registerJimiWebhookRoutes(app: FastifyInstance) {
   const handlePush = async (path: string, payload: unknown) => {
-    app.log.info({ path, payload }, "Jimi webhook received");
+    app.log.info({ path }, "Jimi webhook received");
 
     const body = payload as Record<string, unknown>;
     const deviceId =
@@ -124,7 +122,7 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
       (body.deviceId as string | undefined);
 
     if (deviceId) {
-      const vehicle = await resolveVehicleByCameraId(String(deviceId));
+      const vehicle = await findVehicleByCameraGlobally(String(deviceId));
       if (vehicle) {
         await prisma.vehicle.update({
           where: { id: vehicle.id },
@@ -134,7 +132,7 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
     }
 
     if (path.includes("pushgps") && deviceId) {
-      const vehicle = await resolveVehicleByCameraId(String(deviceId));
+      const vehicle = await findVehicleByCameraGlobally(String(deviceId));
       const lat = Number(body.lat ?? body.latitude);
       const lng = Number(body.lng ?? body.longitude);
       if (vehicle && Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -154,7 +152,7 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
     }
 
     if (path.includes("pushalarm") && deviceId) {
-      const vehicle = await resolveVehicleByCameraId(String(deviceId));
+      const vehicle = await findVehicleByCameraGlobally(String(deviceId));
       const alarmLabel = String(body.alarmLabel ?? body.alertType ?? "UNKNOWN");
       const alert = await prisma.alert.create({
         data: {
@@ -184,8 +182,12 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
 }
 
 export async function registerTelemetryRoutes(app: FastifyInstance) {
-  app.get("/positions/latest", async () => {
-    const vehicles = await prisma.vehicle.findMany();
+  const auth = { preHandler: [app.authenticate] };
+
+  app.get("/positions/latest", auth, async (request) => {
+    const vehicles = await prisma.vehicle.findMany({
+      where: { organizationId: request.authUser!.organizationId },
+    });
     const latest = await Promise.all(
       vehicles.map(async (vehicle) => {
         const position = await prisma.position.findFirst({
@@ -208,8 +210,16 @@ export async function registerTelemetryRoutes(app: FastifyInstance) {
     return latest.filter(Boolean);
   });
 
-  app.get("/alerts", async () => {
+  app.get("/alerts", auth, async (request) => {
+    const vehicleIds = (
+      await prisma.vehicle.findMany({
+        where: { organizationId: request.authUser!.organizationId },
+        select: { id: true },
+      })
+    ).map((v) => v.id);
+
     const alerts = await prisma.alert.findMany({
+      where: { OR: [{ vehicleId: { in: vehicleIds } }, { vehicleId: null }] },
       orderBy: { createdAt: "desc" },
       take: 100,
     });

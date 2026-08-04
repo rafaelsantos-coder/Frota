@@ -1,18 +1,49 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const TOKEN_KEY = "frota_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
   });
 
+  if (response.status === 401) {
+    clearToken();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    throw new Error("Sessão expirada");
+  }
+
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      const text = await response.text();
+      if (text) message = text;
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {
@@ -23,6 +54,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  login: (email: string, password: string) =>
+    request<import("@frota/shared").AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => request<import("@frota/shared").UserDto>("/auth/me"),
+  logout: () => {
+    clearToken();
+  },
   getVehicles: () => request<import("@frota/shared").VehicleDto[]>("/vehicles"),
   createVehicle: (body: import("@frota/shared").CreateVehicleInput) =>
     request<import("@frota/shared").VehicleDto>("/vehicles", {

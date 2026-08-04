@@ -18,22 +18,30 @@ const updateVehicleSchema = createVehicleSchema.partial().extend({
 });
 
 export async function registerVehicleRoutes(app: FastifyInstance) {
-  app.get("/vehicles", async () => {
+  const auth = { preHandler: [app.authenticate] };
+
+  app.get("/vehicles", auth, async (request) => {
     const vehicles = await prisma.vehicle.findMany({
+      where: { organizationId: request.authUser!.organizationId },
       orderBy: { updatedAt: "desc" },
     });
     return vehicles.map(toVehicleDto);
   });
 
-  app.get<{ Params: { id: string } }>("/vehicles/:id", async (request, reply) => {
-    const vehicle = await prisma.vehicle.findUnique({ where: { id: request.params.id } });
+  app.get<{ Params: { id: string } }>("/vehicles/:id", auth, async (request, reply) => {
+    const vehicle = await prisma.vehicle.findFirst({
+      where: {
+        id: request.params.id,
+        organizationId: request.authUser!.organizationId,
+      },
+    });
     if (!vehicle) {
       return reply.status(404).send({ error: "Veículo não encontrado" });
     }
     return toVehicleDto(vehicle);
   });
 
-  app.post("/vehicles", async (request, reply) => {
+  app.post("/vehicles", auth, async (request, reply) => {
     const parsed = createVehicleSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
@@ -41,6 +49,7 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
 
     const vehicle = await prisma.vehicle.create({
       data: {
+        organizationId: request.authUser!.organizationId,
         plate: parsed.data.plate.toUpperCase(),
         label: parsed.data.label,
         trackerImei: parsed.data.trackerImei ?? null,
@@ -52,13 +61,18 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
     return reply.status(201).send(toVehicleDto(vehicle));
   });
 
-  app.patch<{ Params: { id: string } }>("/vehicles/:id", async (request, reply) => {
+  app.patch<{ Params: { id: string } }>("/vehicles/:id", auth, async (request, reply) => {
     const parsed = updateVehicleSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    const existing = await prisma.vehicle.findUnique({ where: { id: request.params.id } });
+    const existing = await prisma.vehicle.findFirst({
+      where: {
+        id: request.params.id,
+        organizationId: request.authUser!.organizationId,
+      },
+    });
     if (!existing) {
       return reply.status(404).send({ error: "Veículo não encontrado" });
     }
@@ -74,7 +88,16 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
     return toVehicleDto(vehicle);
   });
 
-  app.delete<{ Params: { id: string } }>("/vehicles/:id", async (request, reply) => {
+  app.delete<{ Params: { id: string } }>("/vehicles/:id", auth, async (request, reply) => {
+    const existing = await prisma.vehicle.findFirst({
+      where: {
+        id: request.params.id,
+        organizationId: request.authUser!.organizationId,
+      },
+    });
+    if (!existing) {
+      return reply.status(404).send({ error: "Veículo não encontrado" });
+    }
     await prisma.vehicle.delete({ where: { id: request.params.id } });
     return reply.status(204).send();
   });

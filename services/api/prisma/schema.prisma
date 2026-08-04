@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
 enum DeviceStatus {
   ONLINE
   OFFLINE
@@ -23,12 +28,42 @@ enum AlertSource {
   JIMI
 }
 
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  vehicles         Vehicle[]
+  jimiIntegrations JimiIntegration[]
+  gt06Integrations Gt06Integration[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  role           UserRole @default(OPERATOR)
+  active         Boolean  @default(true)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
 model Vehicle {
   id             String       @id @default(cuid())
-  plate          String       @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plate          String
   label          String
-  trackerImei    String?      @unique
-  cameraDeviceId String?      @unique
+  trackerImei    String?
+  cameraDeviceId String?
   cameraModel    String?
   trackerStatus  DeviceStatus @default(UNKNOWN)
   cameraStatus   DeviceStatus @default(UNKNOWN)
@@ -37,28 +72,41 @@ model Vehicle {
 
   positions Position[]
   alerts    Alert[]
+
+  @@unique([organizationId, plate])
+  @@unique([organizationId, trackerImei])
+  @@unique([organizationId, cameraDeviceId])
+  @@index([organizationId])
 }
 
 model JimiIntegration {
-  id        String   @id @default(cuid())
-  label     String   @default("Jimi IoT Hub")
-  appKey    String?
-  appSecret String?
-  pushUrl   String?
-  apiBaseUrl String  @default("https://hk-open.tracksolidpro.com/route/rest")
-  enabled   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  label          String       @default("Jimi IoT Hub")
+  appKey         String?
+  appSecret      String?
+  pushUrl        String?
+  apiBaseUrl     String       @default("https://hk-open.tracksolidpro.com/route/rest")
+  enabled        Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 model Gt06Integration {
-  id        String   @id @default(cuid())
-  label     String   @default("Servidor GT06")
-  host      String   @default("0.0.0.0")
-  port      Int      @default(5023)
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  label          String       @default("Servidor GT06")
+  host           String       @default("0.0.0.0")
+  port           Int          @default(5023)
+  enabled        Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 model Position {

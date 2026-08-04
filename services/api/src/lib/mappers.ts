@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import type {
   AlertDto,
   Gt06IntegrationDto,
@@ -115,26 +114,3 @@ export function toAlertDto(alert: {
     createdAt: alert.createdAt.toISOString(),
   };
 }
-
-export function normalizeImei(value: string): string {
-  return value.replace(/\D/g, "");
-}
-
-export async function resolveVehicleByTrackerImei(imei: string) {
-  const normalized = normalizeImei(imei);
-  return prisma.vehicle.findFirst({
-    where: {
-      OR: [{ trackerImei: normalized }, { trackerImei: imei }],
-    },
-  });
-}
-
-export async function resolveVehicleByCameraId(deviceId: string) {
-  return prisma.vehicle.findFirst({
-    where: {
-      OR: [{ cameraDeviceId: deviceId }, { cameraDeviceId: normalizeImei(deviceId) }],
-    },
-  });
-}
-
-export type { PrismaClient };

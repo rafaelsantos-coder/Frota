@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { getDefaultOrganization } from "../lib/seed.js";
 import { toGt06IntegrationDto, toJimiIntegrationDto } from "../lib/mappers.js";
 
 const jimiSchema = z.object({
@@ -20,23 +21,38 @@ const gt06Schema = z.object({
 });
 
 export async function registerIntegrationRoutes(app: FastifyInstance) {
-  app.get("/integrations/jimi", async () => {
-    let integration = await prisma.jimiIntegration.findFirst({ orderBy: { createdAt: "asc" } });
+  const auth = { preHandler: [app.authenticate] };
+
+  async function orgId(request: { authUser?: { organizationId: string } }) {
+    return request.authUser!.organizationId;
+  }
+
+  app.get("/integrations/jimi", auth, async (request) => {
+    const organizationId = await orgId(request);
+    let integration = await prisma.jimiIntegration.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: "asc" },
+    });
     if (!integration) {
-      integration = await prisma.jimiIntegration.create({ data: {} });
+      integration = await prisma.jimiIntegration.create({
+        data: { organizationId },
+      });
     }
     return toJimiIntegrationDto(integration);
   });
 
-  app.put("/integrations/jimi", async (request, reply) => {
+  app.put("/integrations/jimi", auth, async (request, reply) => {
     const parsed = jimiSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    let integration = await prisma.jimiIntegration.findFirst({ orderBy: { createdAt: "asc" } });
+    const organizationId = await orgId(request);
+    let integration = await prisma.jimiIntegration.findFirst({
+      where: { organizationId },
+    });
     if (!integration) {
-      integration = await prisma.jimiIntegration.create({ data: {} });
+      integration = await prisma.jimiIntegration.create({ data: { organizationId } });
     }
 
     const data = parsed.data;
@@ -55,23 +71,29 @@ export async function registerIntegrationRoutes(app: FastifyInstance) {
     return toJimiIntegrationDto(updated);
   });
 
-  app.get("/integrations/gt06", async () => {
-    let integration = await prisma.gt06Integration.findFirst({ orderBy: { createdAt: "asc" } });
+  app.get("/integrations/gt06", auth, async (request) => {
+    const organizationId = await orgId(request);
+    let integration = await prisma.gt06Integration.findFirst({
+      where: { organizationId },
+    });
     if (!integration) {
-      integration = await prisma.gt06Integration.create({ data: {} });
+      integration = await prisma.gt06Integration.create({ data: { organizationId } });
     }
     return toGt06IntegrationDto(integration);
   });
 
-  app.put("/integrations/gt06", async (request, reply) => {
+  app.put("/integrations/gt06", auth, async (request, reply) => {
     const parsed = gt06Schema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    let integration = await prisma.gt06Integration.findFirst({ orderBy: { createdAt: "asc" } });
+    const organizationId = await orgId(request);
+    let integration = await prisma.gt06Integration.findFirst({
+      where: { organizationId },
+    });
     if (!integration) {
-      integration = await prisma.gt06Integration.create({ data: {} });
+      integration = await prisma.gt06Integration.create({ data: { organizationId } });
     }
 
     const updated = await prisma.gt06Integration.update({
@@ -82,12 +104,13 @@ export async function registerIntegrationRoutes(app: FastifyInstance) {
     return toGt06IntegrationDto(updated);
   });
 
-  app.get("/integrations/status", async () => {
+  app.get("/integrations/status", auth, async (request) => {
+    const organizationId = await orgId(request);
     const [jimi, gt06, trackerSessions, vehicles] = await Promise.all([
-      prisma.jimiIntegration.findFirst(),
-      prisma.gt06Integration.findFirst(),
+      prisma.jimiIntegration.findFirst({ where: { organizationId } }),
+      prisma.gt06Integration.findFirst({ where: { organizationId } }),
       prisma.trackerSession.count({ where: { connected: true } }),
-      prisma.vehicle.count(),
+      prisma.vehicle.count({ where: { organizationId } }),
     ]);
 
     return {
@@ -106,3 +129,24 @@ export async function registerIntegrationRoutes(app: FastifyInstance) {
     };
   });
 }
+
+// Used by Jimi webhooks to resolve vehicles across orgs
+export async function findVehicleByCameraGlobally(deviceId: string) {
+  const normalized = deviceId.replace(/\D/g, "");
+  return prisma.vehicle.findFirst({
+    where: {
+      OR: [{ cameraDeviceId: deviceId }, { cameraDeviceId: normalized }],
+    },
+  });
+}
+
+export async function findVehicleByTrackerGlobally(imei: string) {
+  const normalized = imei.replace(/\D/g, "");
+  return prisma.vehicle.findFirst({
+    where: {
+      OR: [{ trackerImei: imei }, { trackerImei: normalized }],
+    },
+  });
+}
+
+export { getDefaultOrganization };

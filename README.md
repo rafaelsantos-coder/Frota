@@ -1,135 +1,59 @@
-# Frota — Plataforma de Gestão de Frotas
+# Frota — Plataforma de Gestão de Frotas (Produção)
 
-Sprint 0: ingestão GT06 + webhooks Jimi JC371 + painel de integração manual.
+Sistema completo na nuvem: **login com usuário e senha**, banco PostgreSQL, rastreador GT06, câmera Jimi JC371.
 
-## Stack
+**Deploy:** [Railway](https://railway.com) — guia em [`docs/railway-deploy.md`](docs/railway-deploy.md)
 
-- **API** (`services/api`) — Fastify + Prisma + PostgreSQL
-- **GT06 ingest** (`services/gt06-ingest`) — servidor TCP porta 5023
-- **Web** (`apps/web`) — Next.js painel admin
+## O que o sistema inclui
 
-## Hardware suportado (Sprint 0)
+- Autenticação JWT (e-mail + senha)
+- Usuário admin criado automaticamente no primeiro deploy
+- Cadastro de veículos (1 rastreador + 1 câmera por veículo)
+- Painel de integrações (Jimi appKey/appSecret manual)
+- Servidor GT06 TCP + webhooks Jimi
+- PostgreSQL persistente
 
-| Dispositivo | Modelo | Integração |
-|-------------|--------|------------|
-| Rastreador | WIC Smart GPS GT06 | TCP binário :5023 |
-| Câmera | Jimi JC371 | Jimi IoT Hub webhooks |
+## Deploy rápido no Railway
 
-Cada **veículo** possui um rastreador (IMEI) e uma câmera (device ID) vinculados no painel.
+1. Conecte o repo `rafaelsantos-coder/Frota` no Railway
+2. Adicione **PostgreSQL**
+3. Crie 3 serviços: **api**, **gt06-ingest**, **web** (Dockerfiles no repo)
+4. Configure variáveis (ver `docs/railway-deploy.md`)
+5. Acesse `/login` no domínio do web
 
-## Pré-requisitos
+## Variáveis essenciais (API)
 
-- Node.js 20+
-- Docker (PostgreSQL/PostGIS)
-- Git
-
-## Setup local
-
-```bash
-# 1. Clonar e instalar
-git clone https://github.com/rafaelsantos-coder/Frota.git
-cd Frota
-cp .env.example .env
-
-# 2. Subir banco
-docker compose up -d
-
-# 3. Instalar dependências
-npm install
-
-# 4. Gerar client Prisma e criar tabelas
-npm run db:generate
-npm run db:push
-
-# 5. Rodar serviços (3 terminais)
-npm run dev:api      # http://localhost:3001
-npm run dev:gt06     # TCP :5023
-npm run dev:web      # http://localhost:3000
+```env
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+JWT_SECRET=<secret-forte>
+ADMIN_EMAIL=admin@suaempresa.com
+ADMIN_PASSWORD=<senha-forte>
+INTERNAL_API_SECRET=<secret-forte>
 ```
 
-## Painel web
+## Variáveis essenciais (Web)
 
-| Rota | Função |
-|------|--------|
-| `/` | Dashboard — posições e alertas |
-| `/vehicles` | Cadastro veículo + rastreador + câmera JC371 |
-| `/integrations` | Credenciais Jimi (appKey/appSecret) e config GT06 |
-
-## Configurar rastreador GT06 (migração paralela)
-
-Mantenha SmartGPS para frota legada. Para veículos piloto na plataforma Frota:
-
-```
-#ip#123456#SEU_HOST_PUBLICO#5023#
+```env
+NEXT_PUBLIC_API_URL=https://sua-api.up.railway.app
 ```
 
-Rollback para SmartGPS:
+## Hardware
 
-```
-#ip#123456#smartconn.mine.nu#5023#
-```
+| Dispositivo | Modelo | Protocolo |
+|-------------|--------|-----------|
+| Rastreador | WIC Smart GPS GT06 | TCP :5023 |
+| Câmera | Jimi JC371 | IoT Hub webhooks |
 
-## Configurar Jimi JC371 (quando tiver credenciais)
-
-1. Painel **Integrações** → preencher appKey e appSecret
-2. No Jimi IoT Hub, configurar push URL:
-   - `http://SEU_SERVIDOR:3001/integrations/jimi/pushgps`
-   - `http://SEU_SERVIDOR:3001/integrations/jimi/pushalarm`
-   - `http://SEU_SERVIDOR:3001/integrations/jimi/pushIothubEvent`
-3. Cadastrar veículo com **ID da câmera** igual ao device ID/IMEI Jimi
-
-## API endpoints principais
-
-```
-GET  /health
-GET  /vehicles
-POST /vehicles
-GET  /integrations/jimi
-PUT  /integrations/jimi
-GET  /integrations/gt06
-PUT  /integrations/gt06
-GET  /positions/latest
-GET  /alerts
-POST /integrations/jimi/pushgps
-POST /integrations/jimi/pushalarm
-```
-
-## Estrutura do monorepo
+## Estrutura
 
 ```
 Frota/
-├── apps/web/              # Painel Next.js
-├── services/
-│   ├── api/               # REST + webhooks + Prisma
-│   └── gt06-ingest/       # Servidor TCP GT06
-├── packages/shared/       # Tipos compartilhados
-└── docker-compose.yml
+├── apps/web/              # Painel Next.js + login
+├── services/api/          # API + auth + Prisma
+├── services/gt06-ingest/  # TCP GT06
+├── packages/shared/
+└── docs/railway-deploy.md
 ```
-
-## Próximos passos (Sprint 1)
-
-- Mapa live (MapLibre)
-- Cercas eletrônicas (PostGIS)
-- Autenticação multi-tenant
-- OAuth Jimi automático quando credenciais estiverem ativas
-- Deploy cloud (API + GT06 TCP + webhooks públicos)
-
-## Deploy no Railway
-
-Guia completo: [`docs/railway-deploy.md`](docs/railway-deploy.md)
-
-Serviços: **postgres** + **api** (HTTP) + **gt06-ingest** (TCP proxy :5023) + **web** (painel).
-
-```powershell
-$env:RAILWAY_TOKEN = "seu-project-token"
-npm run railway:whoami
-npm run railway:link
-npm run railway:deploy:api
-npm run railway:deploy:gt06
-npm run railway:deploy:web
-```
-
-Credenciais Jimi continuam no painel **Integrações** — não vão para variáveis Railway.
 
 ## Licença
 
