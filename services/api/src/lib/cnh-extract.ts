@@ -64,8 +64,8 @@ function parseJsonContent(text: string): CnhExtractResult {
 }
 
 function geminiModels(): string[] {
-  const preferred = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
-  return [...new Set([preferred, "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash"])];
+  const preferred = process.env.GEMINI_MODEL ?? "gemini-2.0-flash-lite";
+  return [...new Set([preferred, "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"])];
 }
 
 function friendlyProviderError(provider: AiProvider, status: number, raw: string): AiProviderError {
@@ -79,7 +79,7 @@ function friendlyProviderError(provider: AiProvider, status: number, raw: string
   if (status === 401 || status === 403) {
     return new AiProviderError(
       provider === "gemini"
-        ? "Chave Gemini inválida. Use uma chave AIza… do Google AI Studio em GEMINI_API_KEY."
+        ? "Chave Gemini inválida. Gere uma nova chave em aistudio.google.com/apikey e atualize GEMINI_API_KEY no Railway."
         : "Chave OpenAI inválida. Verifique OPENAI_API_KEY no Railway.",
       status,
     );

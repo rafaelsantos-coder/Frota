@@ -50,7 +50,7 @@ function friendlyExtractError(message: string) {
     return "Cota da IA esgotada. Preencha os campos manualmente ou gere nova chave em aistudio.google.com/apikey.";
   }
   if (message.includes("401") || message.includes("403") || message.includes("API key")) {
-    return "Chave de IA inválida no servidor. Use chave AIza… do Google AI Studio em GEMINI_API_KEY.";
+    return "Chave de IA inválida no servidor. Gere uma nova chave em aistudio.google.com/apikey e atualize GEMINI_API_KEY no Railway.";
   }
   return message;
 }
