@@ -112,7 +112,9 @@ export function MotoristasClient() {
         if (photoData) {
           setForm((prev) => ({ ...prev, photoData }));
         }
-        setExtractMsg(`${extracted.message}${photoData ? " Foto estimada da CNH aplicada." : ""}`);
+        setExtractMsg(
+          `${friendlyExtractError(extracted.message)}${photoData ? " Foto estimada da CNH aplicada." : ""}`,
+        );
       } else {
         let photoData = "";
         try {
