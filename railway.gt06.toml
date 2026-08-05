@@ -1,7 +1,9 @@
-# Serviço gt06-ingest — TCP GT06 :5023
+# Config as Code — serviço Railway "gt06-ingest"
+# Settings → Config file path: railway.gt06.toml
+
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "services/gt06-ingest/Dockerfile"
+dockerfilePath = "Dockerfile.gt06"
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
