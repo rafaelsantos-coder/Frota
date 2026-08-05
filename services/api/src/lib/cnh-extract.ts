@@ -14,22 +14,72 @@ Extraia os dados e retorne APENAS um JSON válido com estas chaves (omitir se n�
 
 Use formato de data ISO. Para CPF mantenha pontuação se visível no documento.`;
 
-export async function extractCnhFromImage(
-  imageBase64: string,
-  mimeType: string,
-): Promise<CnhExtractResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return {
-      message:
-        "OPENAI_API_KEY não configurada no servidor. Preencha os campos manualmente ou configure a chave no Railway.",
-    };
-  }
+type AiProvider = "gemini" | "openai";
 
+function resolveProvider(): AiProvider | null {
+  const forced = process.env.CNH_AI_PROVIDER?.toLowerCase();
+  if (forced === "gemini" && process.env.GEMINI_API_KEY) return "gemini";
+  if (forced === "openai" && process.env.OPENAI_API_KEY) return "openai";
+  if (process.env.GEMINI_API_KEY) return "gemini";
+  if (process.env.OPENAI_API_KEY) return "openai";
+  return null;
+}
+
+function normalizeBase64(imageBase64: string, mimeType: string) {
   const dataUrl = imageBase64.startsWith("data:")
     ? imageBase64
     : `data:${mimeType};base64,${imageBase64}`;
+  const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1]! : imageBase64;
+  const mime = dataUrl.match(/^data:([^;]+);/)?.[1] ?? mimeType;
+  return { dataUrl, base64, mime };
+}
 
+function parseJsonContent(text: string): CnhExtractResult {
+  const trimmed = text.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  const json = jsonMatch ? jsonMatch[0] : trimmed;
+  return JSON.parse(json) as CnhExtractResult;
+}
+
+async function extractWithGemini(base64: string, mime: string): Promise<CnhExtractResult> {
+  const apiKey = process.env.GEMINI_API_KEY!;
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: EXTRACT_PROMPT },
+            { inline_data: { mime_type: mime, data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.1,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini: ${response.status} ${errText.slice(0, 200)}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini retornou resposta vazia");
+  return parseJsonContent(text);
+}
+
+async function extractWithOpenAI(dataUrl: string): Promise<CnhExtractResult> {
+  const apiKey = process.env.OPENAI_API_KEY!;
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -54,19 +104,35 @@ export async function extractCnhFromImage(
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Falha na extração IA: ${response.status} ${errText.slice(0, 200)}`);
+    throw new Error(`OpenAI: ${response.status} ${errText.slice(0, 200)}`);
   }
 
   const data = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const content = data.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("Resposta vazia da IA");
+  if (!content) throw new Error("OpenAI retornou resposta vazia");
+  return parseJsonContent(content);
+}
+
+export async function extractCnhFromImage(
+  imageBase64: string,
+  mimeType: string,
+): Promise<CnhExtractResult> {
+  const provider = resolveProvider();
+  if (!provider) {
+    return {
+      message:
+        "Configure GEMINI_API_KEY ou OPENAI_API_KEY no Railway (serviço api). Recomendado: Gemini (grátis no AI Studio).",
+    };
   }
 
-  const parsed = JSON.parse(content) as CnhExtractResult;
-  return parsed;
+  const { dataUrl, base64, mime } = normalizeBase64(imageBase64, mimeType);
+
+  if (provider === "gemini") {
+    return extractWithGemini(base64, mime);
+  }
+  return extractWithOpenAI(dataUrl);
 }
 
 export function parseDateOnly(value?: string | null): Date | null {
