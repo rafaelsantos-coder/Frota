@@ -1,6 +1,6 @@
 import net from "node:net";
 import { buildAck, parsePackets } from "./gt06-protocol.js";
-import { forwardPosition, notifySession } from "./api-client.js";
+import { forwardAlarm, forwardPosition, forwardRfid, notifySession } from "./api-client.js";
 
 const port = Number(process.env.GT06_PORT ?? 5023);
 const host = process.env.GT06_HOST ?? "0.0.0.0";
@@ -27,7 +27,7 @@ const server = net.createServer((socket) => {
       }
 
       if (message.type === "heartbeat") {
-        if (imei) void notifySession(imei, true, remoteIp);
+        if (imei) void notifySession(imei, true, remoteIp, message.ignitionOn);
         socket.write(buildAck(0x13, message.serial));
       }
 
@@ -41,7 +41,24 @@ const server = net.createServer((socket) => {
           course: message.course,
           recordedAt: message.recordedAt,
           remoteIp,
+          ignitionOn: message.ignitionOn,
         });
+      }
+
+      if (message.type === "alarm" && imei) {
+        socket.write(buildAck(0x16, message.serial));
+        void forwardAlarm({
+          imei,
+          alarmType: message.alarmType,
+          latitude: message.latitude,
+          longitude: message.longitude,
+          recordedAt: message.recordedAt,
+        });
+      }
+
+      if (message.type === "rfid" && imei) {
+        socket.write(buildAck(0x17, message.serial));
+        void forwardRfid({ imei, rfidTag: message.rfidTag });
       }
 
       if (message.type === "unknown") {

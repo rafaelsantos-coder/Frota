@@ -34,6 +34,28 @@ enum AlertStatus {
   RESOLVED
 }
 
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+}
+
+enum ExpenseCategory {
+  IPVA
+  INSURANCE
+  LICENSE
+  RENT
+  FINANCING
+  TRAVEL
+  DOCUMENT
+  OTHER
+}
+
+enum FineStatus {
+  PENDING
+  PAID
+  CONTESTED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -41,11 +63,14 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users            User[]
-  vehicles         Vehicle[]
-  jimiIntegrations JimiIntegration[]
-  gt06Integrations Gt06Integration[]
-  geofences        Geofence[]
+  users                User[]
+  vehicles             Vehicle[]
+  jimiIntegrations     JimiIntegration[]
+  gt06Integrations     Gt06Integration[]
+  geofences            Geofence[]
+  drivers              Driver[]
+  checklistTemplates   ChecklistTemplate[]
+  notificationPrefs    NotificationPreference[]
 }
 
 model User {
@@ -60,7 +85,46 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  dashboardLayout DashboardLayout?
+
   @@index([organizationId])
+}
+
+model Driver {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  cpf            String?
+  cnh            String?
+  rfidTag        String?
+  ibuttonId      String?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  assignments DriverAssignment[]
+  alerts      Alert[]
+  positions   Position[]
+  fuelEntries FuelEntry[]
+  checklists  ChecklistEntry[]
+  fines       VehicleFine[]
+
+  @@unique([organizationId, rfidTag])
+  @@index([organizationId])
+}
+
+model DriverAssignment {
+  id        String    @id @default(cuid())
+  driverId  String
+  driver    Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId String
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([driverId, startedAt(sort: Desc)])
+  @@index([vehicleId, startedAt(sort: Desc)])
 }
 
 model Vehicle {
@@ -69,6 +133,9 @@ model Vehicle {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   plate          String
   label          String
+  renavam        String?
+  plateState     String?
+  ownerDocument  String?
   trackerImei    String?
   cameraDeviceId String?
   cameraModel    String?
@@ -77,9 +144,18 @@ model Vehicle {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  positions  Position[]
-  alerts     Alert[]
-  videoClips VideoClip[]
+  positions              Position[]
+  alerts                 Alert[]
+  videoClips             VideoClip[]
+  driverAssignments      DriverAssignment[]
+  stopPoints             StopPoint[]
+  fuelEntries            FuelEntry[]
+  maintenanceOrders      MaintenanceOrder[]
+  maintenanceReminders   MaintenanceReminder[]
+  checklists             ChecklistEntry[]
+  fines                  VehicleFine[]
+  expenses               VehicleExpense[]
+  liveStreamSessions     LiveStreamSession[]
 
   @@unique([organizationId, plate])
   @@unique([organizationId, trackerImei])
@@ -136,22 +212,41 @@ model Position {
   id         String         @id @default(cuid())
   vehicleId  String
   vehicle    Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId   String?
+  driver     Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
   source     PositionSource
   latitude   Float
   longitude  Float
   speedKmh   Float?
   course     Float?
+  ignitionOn Boolean?
   recordedAt DateTime
   createdAt  DateTime       @default(now())
 
   @@index([vehicleId, recordedAt(sort: Desc)])
   @@index([recordedAt(sort: Desc)])
+  @@index([driverId])
+}
+
+model StopPoint {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  latitude    Float
+  longitude   Float
+  startedAt   DateTime
+  endedAt     DateTime?
+  durationMin Int      @default(0)
+
+  @@index([vehicleId, startedAt(sort: Desc)])
 }
 
 model Alert {
   id        String      @id @default(cuid())
   vehicleId String?
   vehicle   Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driverId  String?
+  driver    Driver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
   source    AlertSource
   type      String
   label     String
@@ -165,6 +260,7 @@ model Alert {
 
   @@index([createdAt(sort: Desc)])
   @@index([vehicleId])
+  @@index([driverId])
   @@index([status])
 }
 
@@ -183,10 +279,155 @@ model VideoClip {
   @@index([vehicleId, createdAt(sort: Desc)])
 }
 
+model LiveStreamSession {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  streamUrl String?
+  channel   Int      @default(1)
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([vehicleId, startedAt(sort: Desc)])
+}
+
+model FuelEntry {
+  id         String   @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId   String?
+  driver     Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  liters     Float
+  amountPaid Float
+  odometerKm Float?
+  station    String?
+  recordedAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([vehicleId, recordedAt(sort: Desc)])
+}
+
+model MaintenanceOrder {
+  id          String          @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type        MaintenanceType
+  description String
+  partsCost   Float           @default(0)
+  laborCost   Float           @default(0)
+  odometerKm  Float?
+  performedAt DateTime
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  @@index([vehicleId, performedAt(sort: Desc)])
+}
+
+model MaintenanceReminder {
+  id              String    @id @default(cuid())
+  vehicleId       String
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  service         String
+  intervalKm      Int?
+  intervalDays    Int?
+  lastDoneAt      DateTime?
+  lastDoneKm      Float?
+  alertDaysBefore Int       @default(7)
+  enabled         Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([vehicleId])
+}
+
+model ChecklistTemplate {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  items          Json
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  entries ChecklistEntry[]
+
+  @@index([organizationId])
+}
+
+model ChecklistEntry {
+  id          String            @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId    String?
+  driver      Driver?           @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  templateId  String
+  template    ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers     Json
+  submittedAt DateTime          @default(now())
+
+  @@index([vehicleId, submittedAt(sort: Desc)])
+}
+
+model VehicleFine {
+  id           String     @id @default(cuid())
+  vehicleId    String
+  vehicle      Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId     String?
+  driver       Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  description  String
+  amount       Float
+  dueDate      DateTime?
+  paidAt       DateTime?
+  status       FineStatus @default(PENDING)
+  location     String?
+  latitude     Float?
+  longitude    Float?
+  autoImported Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@index([vehicleId, createdAt(sort: Desc)])
+}
+
+model VehicleExpense {
+  id          String          @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory
+  description String
+  amount      Float
+  dueDate     DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([vehicleId, createdAt(sort: Desc)])
+}
+
+model NotificationPreference {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String?
+  onCritical     Boolean      @default(true)
+  onHigh         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
+model DashboardLayout {
+  id      String @id @default(cuid())
+  userId  String @unique
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  widgets Json
+}
+
 model TrackerSession {
   imei       String   @id
   connected  Boolean  @default(true)
   lastSeenAt DateTime @default(now())
   remoteIp   String?
+  ignitionOn Boolean?
   updatedAt  DateTime @updatedAt
 }

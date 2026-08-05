@@ -7,6 +7,12 @@ import {
 } from "./integrations.js";
 import { toAlertDto, toPositionDto } from "../lib/mappers.js";
 import { alertSeverity, isInsideGeofence } from "../lib/geo.js";
+import {
+  assignDriverToVehicle,
+  resolveDriverByRfid,
+  resolveDriverForVehicle,
+} from "../lib/drivers.js";
+import { notifyCriticalAlert } from "../lib/notifications.js";
 
 const gt06PositionSchema = z.object({
   imei: z.string(),
@@ -14,8 +20,23 @@ const gt06PositionSchema = z.object({
   longitude: z.number(),
   speedKmh: z.number().nullable().optional(),
   course: z.number().nullable().optional(),
+  ignitionOn: z.boolean().nullable().optional(),
   recordedAt: z.string().datetime(),
   remoteIp: z.string().optional(),
+});
+
+const gt06AlarmSchema = z.object({
+  imei: z.string(),
+  alarmType: z.string(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  recordedAt: z.string().datetime().optional(),
+});
+
+const gt06RfidSchema = z.object({
+  imei: z.string(),
+  rfidTag: z.string(),
+  recordedAt: z.string().datetime().optional(),
 });
 
 function verifyInternalSecret(header?: string) {
@@ -24,12 +45,22 @@ function verifyInternalSecret(header?: string) {
   return header === expected;
 }
 
+const ALARM_LABELS: Record<string, string> = {
+  HARD_BRAKE: "Frenagem brusca",
+  HARD_ACCEL: "Aceleração brusca",
+  SHARP_TURN: "Curva acentuada",
+  ENGINE_IDLE: "Motor ocioso",
+  SOS: "SOS",
+  POWER_CUT: "Corte de energia",
+};
+
 async function checkGeofences(
   vehicleId: string,
   organizationId: string,
   lat: number,
   lng: number,
   speedKmh: number | null,
+  driverId?: string | null,
 ) {
   const fences = await prisma.geofence.findMany({
     where: { organizationId, enabled: true },
@@ -37,16 +68,18 @@ async function checkGeofences(
 
   const speedLimit = Number(process.env.SPEED_LIMIT_KMH ?? 80);
   if (speedKmh != null && speedKmh > speedLimit) {
-    await prisma.alert.create({
+    const alert = await prisma.alert.create({
       data: {
         vehicleId,
+        driverId: driverId ?? null,
         source: "GT06",
         type: "OVERSPEED",
         label: `Excesso de velocidade (${Math.round(speedKmh)} km/h)`,
         severity: alertSeverity("OVERSPEED"),
-        payload: { speedKmh, limit: speedLimit },
+        payload: { speedKmh, limit: speedLimit, lat, lng },
       },
     });
+    void notifyCriticalAlert({ ...alert, organizationId });
   }
 
   for (const fence of fences) {
@@ -62,22 +95,24 @@ async function checkGeofences(
       await prisma.alert.create({
         data: {
           vehicleId,
+          driverId: driverId ?? null,
           source: "GT06",
           type: "GEOFENCE_ENTER",
           label: `Entrada em cerca: ${fence.name}`,
           severity: alertSeverity("GEOFENCE_ENTER"),
-          payload: { key, inside: true, geofenceId: fence.id, geofenceName: fence.name },
+          payload: { key, inside: true, geofenceId: fence.id, geofenceName: fence.name, lat, lng },
         },
       });
     } else if (!inside && lastState === true) {
       await prisma.alert.create({
         data: {
           vehicleId,
+          driverId: driverId ?? null,
           source: "GT06",
           type: "GEOFENCE_EXIT",
           label: `Saída de cerca: ${fence.name}`,
           severity: alertSeverity("GEOFENCE_EXIT"),
-          payload: { key, inside: false, geofenceId: fence.id, geofenceName: fence.name },
+          payload: { key, inside: false, geofenceId: fence.id, geofenceName: fence.name, lat, lng },
         },
       });
     }
@@ -151,9 +186,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     }
 
     const parsed = gt06PositionSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: parsed.error.flatten() });
-    }
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
 
     const imei = parsed.data.imei.replace(/\D/g, "");
     const vehicle = await findVehicleByTrackerGlobally(imei);
@@ -165,11 +198,13 @@ export async function registerIngestRoutes(app: FastifyInstance) {
         connected: true,
         lastSeenAt: new Date(parsed.data.recordedAt),
         remoteIp: parsed.data.remoteIp,
+        ignitionOn: parsed.data.ignitionOn ?? null,
       },
       update: {
         connected: true,
         lastSeenAt: new Date(parsed.data.recordedAt),
         remoteIp: parsed.data.remoteIp,
+        ignitionOn: parsed.data.ignitionOn ?? undefined,
       },
     });
 
@@ -179,17 +214,48 @@ export async function registerIngestRoutes(app: FastifyInstance) {
         data: { trackerStatus: "ONLINE" },
       });
 
+      const driver = await resolveDriverForVehicle(vehicle.id, vehicle.organizationId);
+
       const position = await prisma.position.create({
         data: {
           vehicleId: vehicle.id,
+          driverId: driver?.id ?? null,
           source: "GT06",
           latitude: parsed.data.latitude,
           longitude: parsed.data.longitude,
           speedKmh: parsed.data.speedKmh ?? null,
           course: parsed.data.course ?? null,
+          ignitionOn: parsed.data.ignitionOn ?? null,
           recordedAt: new Date(parsed.data.recordedAt),
         },
       });
+
+      if (parsed.data.ignitionOn && (parsed.data.speedKmh ?? 0) <= 5) {
+        const recentIdle = await prisma.alert.findFirst({
+          where: {
+            vehicleId: vehicle.id,
+            type: "ENGINE_IDLE",
+            createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+          },
+        });
+        if (!recentIdle) {
+          const alert = await prisma.alert.create({
+            data: {
+              vehicleId: vehicle.id,
+              driverId: driver?.id ?? null,
+              source: "GT06",
+              type: "ENGINE_IDLE",
+              label: "Motor ocioso",
+              severity: alertSeverity("ENGINE_IDLE"),
+              payload: {
+                lat: parsed.data.latitude,
+                lng: parsed.data.longitude,
+              },
+            },
+          });
+          void notifyCriticalAlert({ ...alert, organizationId: vehicle.organizationId });
+        }
+      }
 
       void checkGeofences(
         vehicle.id,
@@ -197,6 +263,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
         parsed.data.latitude,
         parsed.data.longitude,
         parsed.data.speedKmh ?? null,
+        driver?.id,
       );
 
       return { ok: true, linked: true, position: toPositionDto(position) };
@@ -205,12 +272,70 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     return { ok: true, linked: false, imei };
   });
 
+  app.post("/internal/gt06/alarm", async (request, reply) => {
+    if (!verifyInternalSecret(request.headers["x-internal-secret"] as string | undefined)) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const parsed = gt06AlarmSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
+
+    const imei = parsed.data.imei.replace(/\D/g, "");
+    const vehicle = await findVehicleByTrackerGlobally(imei);
+    if (!vehicle) return { ok: true, linked: false };
+
+    const driver = await resolveDriverForVehicle(vehicle.id, vehicle.organizationId);
+    const type = parsed.data.alarmType;
+    const alert = await prisma.alert.create({
+      data: {
+        vehicleId: vehicle.id,
+        driverId: driver?.id ?? null,
+        source: "GT06",
+        type,
+        label: ALARM_LABELS[type] ?? type,
+        severity: alertSeverity(type),
+        payload: {
+          lat: parsed.data.latitude,
+          lng: parsed.data.longitude,
+          imei,
+        },
+      },
+    });
+    void notifyCriticalAlert({ ...alert, organizationId: vehicle.organizationId });
+    return { ok: true, alert: toAlertDto(alert) };
+  });
+
+  app.post("/internal/gt06/rfid", async (request, reply) => {
+    if (!verifyInternalSecret(request.headers["x-internal-secret"] as string | undefined)) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const parsed = gt06RfidSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
+
+    const imei = parsed.data.imei.replace(/\D/g, "");
+    const vehicle = await findVehicleByTrackerGlobally(imei);
+    if (!vehicle) return { ok: true, linked: false };
+
+    const driver = await resolveDriverByRfid(parsed.data.rfidTag, vehicle.organizationId);
+    if (driver) {
+      await assignDriverToVehicle(driver.id, vehicle.id);
+      return { ok: true, driverId: driver.id, driverName: driver.name };
+    }
+    return { ok: true, linked: true, message: "RFID não cadastrado" };
+  });
+
   app.post("/internal/gt06/session", async (request, reply) => {
     if (!verifyInternalSecret(request.headers["x-internal-secret"] as string | undefined)) {
       return reply.status(401).send({ error: "Unauthorized" });
     }
 
-    const body = request.body as { imei: string; connected: boolean; remoteIp?: string };
+    const body = request.body as {
+      imei: string;
+      connected: boolean;
+      remoteIp?: string;
+      ignitionOn?: boolean;
+    };
     const imei = body.imei.replace(/\D/g, "");
 
     await prisma.trackerSession.upsert({
@@ -220,11 +345,13 @@ export async function registerIngestRoutes(app: FastifyInstance) {
         connected: body.connected,
         lastSeenAt: new Date(),
         remoteIp: body.remoteIp,
+        ignitionOn: body.ignitionOn ?? null,
       },
       update: {
         connected: body.connected,
         lastSeenAt: new Date(),
         remoteIp: body.remoteIp,
+        ignitionOn: body.ignitionOn ?? undefined,
       },
     });
 
@@ -270,9 +397,11 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
       const lat = Number(body.lat ?? body.latitude);
       const lng = Number(body.lng ?? body.longitude);
       if (vehicle && Number.isFinite(lat) && Number.isFinite(lng)) {
+        const driver = await resolveDriverForVehicle(vehicle.id, vehicle.organizationId);
         const position = await prisma.position.create({
           data: {
             vehicleId: vehicle.id,
+            driverId: driver?.id ?? null,
             source: "JIMI",
             latitude: lat,
             longitude: lng,
@@ -288,9 +417,13 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
     if (path.includes("pushalarm") && deviceId) {
       const vehicle = await findVehicleByCameraGlobally(String(deviceId));
       const alarmLabel = String(body.alarmLabel ?? body.alertType ?? "UNKNOWN");
+      const driver = vehicle
+        ? await resolveDriverForVehicle(vehicle.id, vehicle.organizationId)
+        : null;
       const alert = await prisma.alert.create({
         data: {
           vehicleId: vehicle?.id,
+          driverId: driver?.id ?? null,
           source: "JIMI",
           type: alarmLabel,
           label: alarmLabel,
@@ -298,6 +431,9 @@ export async function registerJimiWebhookRoutes(app: FastifyInstance) {
           payload: body as object,
         },
       });
+      if (vehicle) {
+        void notifyCriticalAlert({ ...alert, organizationId: vehicle.organizationId });
+      }
       return { ok: true, alert: toAlertDto(alert) };
     }
 
@@ -359,6 +495,7 @@ export async function registerTelemetryRoutes(app: FastifyInstance) {
       take: 100,
       include: {
         vehicle: { select: { id: true, plate: true, label: true } },
+        driver: { select: { id: true, name: true } },
         videoClips: true,
       },
     });

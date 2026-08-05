@@ -22,6 +22,9 @@ export function VehiclesClient() {
   const [form, setForm] = useState({
     plate: "",
     label: "",
+    renavam: "",
+    plateState: "",
+    ownerDocument: "",
     trackerImei: "",
     cameraDeviceId: "",
   });
@@ -48,11 +51,14 @@ export function VehiclesClient() {
       await api.createVehicle({
         plate: form.plate,
         label: form.label,
+        renavam: form.renavam || undefined,
+        plateState: form.plateState || undefined,
+        ownerDocument: form.ownerDocument || undefined,
         trackerImei: form.trackerImei || undefined,
         cameraDeviceId: form.cameraDeviceId || undefined,
         cameraModel: form.cameraDeviceId ? "JC371" : undefined,
       });
-      setForm({ plate: "", label: "", trackerImei: "", cameraDeviceId: "" });
+      setForm({ plate: "", label: "", renavam: "", plateState: "", ownerDocument: "", trackerImei: "", cameraDeviceId: "" });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar veículo");
@@ -94,6 +100,25 @@ export function VehiclesClient() {
                 onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
                 placeholder="Caminhão 01"
                 required
+              />
+            </div>
+          </div>
+          <div className="two-col">
+            <div className="form-row">
+              <label htmlFor="renavam">Renavam</label>
+              <input
+                id="renavam"
+                value={form.renavam}
+                onChange={(e) => setForm((f) => ({ ...f, renavam: e.target.value }))}
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="plateState">UF</label>
+              <input
+                id="plateState"
+                value={form.plateState}
+                onChange={(e) => setForm((f) => ({ ...f, plateState: e.target.value.toUpperCase() }))}
+                maxLength={2}
               />
             </div>
           </div>

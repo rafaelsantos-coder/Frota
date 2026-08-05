@@ -9,6 +9,10 @@ export function CamerasClient() {
   const [clips, setClips] = useState<Awaited<ReturnType<typeof api.getVideoClips>>>([]);
   const [vehicles, setVehicles] = useState<Awaited<ReturnType<typeof api.getVehicles>>>([]);
   const [vehicleId, setVehicleId] = useState(searchParams.get("vehicleId") ?? "");
+  const [live, setLive] = useState<Awaited<ReturnType<typeof api.startLiveStream>> | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [videoTime, setVideoTime] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void api.getVehicles().then(setVehicles);
@@ -24,11 +28,37 @@ export function CamerasClient() {
 
   const selected = vehicles.find((v) => v.id === vehicleId);
 
+  async function handleLive() {
+    if (!vehicleId) return;
+    setLiveLoading(true);
+    setMessage(null);
+    try {
+      const session = await api.startLiveStream(vehicleId);
+      setLive(session);
+      if ("error" in session && session.error) setMessage(String((session as { error?: string }).error));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Erro ao iniciar live");
+    } finally {
+      setLiveLoading(false);
+    }
+  }
+
+  async function handleRequestVideo() {
+    if (!vehicleId || !videoTime) return;
+    setMessage(null);
+    try {
+      const res = await api.requestVideo(vehicleId, videoTime);
+      setMessage(res.message);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Erro ao solicitar vídeo");
+    }
+  }
+
   return (
     <>
       <div className="page-header">
         <h2>Câmeras JC371</h2>
-        <p>Clipes de eventos e live view (requer credenciais Jimi configuradas)</p>
+        <p>Live view (20 min), vídeo sob demanda e biblioteca de clipes</p>
       </div>
 
       <div className="panel filters-row">
@@ -37,9 +67,7 @@ export function CamerasClient() {
           <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
             <option value="">Todos</option>
             {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.plate} — {v.label}
-              </option>
+              <option key={v.id} value={v.id}>{v.plate} — {v.label}</option>
             ))}
           </select>
         </div>
@@ -48,14 +76,36 @@ export function CamerasClient() {
       {selected && (
         <div className="panel">
           <h3>Live view — {selected.plate}</h3>
-          <p className="muted">
-            Para transmissão ao vivo, configure appKey/appSecret Jimi em Integrações. O sistema
-            enviará comando RTMP para a câmera JC371 (protocolo Jimi IoT Hub).
-          </p>
-          <div className="video-placeholder">
-            <span>Live stream disponível após integração Jimi completa</span>
-            <small>Device ID: {selected.cameraDeviceId ?? "não configurado"}</small>
+          <p className="muted">Device ID: {selected.cameraDeviceId ?? "não configurado"}</p>
+          <div className="live-controls">
+            <button type="button" className="btn" onClick={() => void handleLive()} disabled={liveLoading || !selected.cameraDeviceId}>
+              {liveLoading ? "Iniciando…" : "Iniciar live (20 min)"}
+            </button>
           </div>
+          {live?.streamUrl ? (
+            <div className="video-placeholder">
+              <strong>Stream ativo</strong>
+              <a href={live.streamUrl} target="_blank" rel="noreferrer">Abrir stream RTMP/HLS</a>
+              <small>Expira: {new Date(live.expiresAt).toLocaleString("pt-BR")}</small>
+            </div>
+          ) : (
+            <div className="video-placeholder">
+              <span>{live?.status === "PENDING" ? "Aguardando resposta da câmera…" : "Clique para iniciar transmissão ao vivo"}</span>
+            </div>
+          )}
+
+          <h4 style={{ marginTop: 24 }}>Vídeo de 1 minuto sob demanda</h4>
+          <div className="filters-row">
+            <input
+              type="datetime-local"
+              value={videoTime}
+              onChange={(e) => setVideoTime(e.target.value)}
+            />
+            <button type="button" className="btn btn-secondary" onClick={() => void handleRequestVideo()} disabled={!videoTime}>
+              Solicitar vídeo
+            </button>
+          </div>
+          {message && <p className="muted">{message}</p>}
         </div>
       )}
 
@@ -75,9 +125,7 @@ export function CamerasClient() {
                   : new Date(clip.createdAt).toLocaleString("pt-BR")}
               </span>
               {clip.fileUrl ? (
-                <a href={clip.fileUrl} target="_blank" rel="noreferrer" className="btn btn-sm">
-                  Abrir
-                </a>
+                <a href={clip.fileUrl} target="_blank" rel="noreferrer" className="btn btn-sm">Abrir</a>
               ) : (
                 <span className="muted">Aguardando URL do Jimi storage</span>
               )}
@@ -85,10 +133,7 @@ export function CamerasClient() {
           ))}
         </div>
         {clips.length === 0 && (
-          <p className="muted">
-            Nenhum clipe recebido. Quando a JC371 enviar eventos DMS, os arquivos chegam via
-            webhook pushfileupload.
-          </p>
+          <p className="muted">Nenhum clipe recebido via webhook pushfileupload.</p>
         )}
       </div>
     </>

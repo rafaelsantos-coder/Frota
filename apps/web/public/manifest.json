@@ -1,0 +1,10 @@
+{
+  "name": "Sulnet Motorista",
+  "short_name": "Sulnet",
+  "description": "App do motorista — checklist e score",
+  "start_url": "/motorista",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": []
+}

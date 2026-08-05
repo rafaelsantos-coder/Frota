@@ -44,6 +44,33 @@ function decodeDateTime(bytes: Buffer): Date {
   return new Date(Date.UTC(year, month, day, hour, minute, second));
 }
 
+function decodeRfid(bytes: Buffer): string {
+  return bytes.toString("hex").toUpperCase();
+}
+
+const GT06_ALARM_MAP: Record<number, string> = {
+  0x01: "SOS",
+  0x02: "POWER_CUT",
+  0x03: "VIBRATION",
+  0x04: "ENTER_FENCE",
+  0x05: "EXIT_FENCE",
+  0x06: "OVERSPEED",
+  0x09: "TOW",
+  0x0a: "GPS_ANTENNA",
+  0x0b: "DISASSEMBLE",
+  0x0c: "LOW_BATTERY",
+  0x0d: "POWER_ON",
+  0x10: "SIM_CHANGE",
+  0x11: "POWER_OFF",
+  0x12: "AIRPLANE",
+  0x13: "DOOR",
+  0x14: "LOW_POWER",
+  0x15: "VIBRATION",
+  0x16: "HARD_ACCEL",
+  0x17: "HARD_BRAKE",
+  0x18: "SHARP_TURN",
+};
+
 export type Gt06Message =
   | { type: "login"; imei: string; serial: number }
   | {
@@ -54,8 +81,18 @@ export type Gt06Message =
       course: number;
       recordedAt: Date;
       serial: number;
+      ignitionOn?: boolean;
     }
-  | { type: "heartbeat"; serial: number; terminalInfo?: number }
+  | { type: "heartbeat"; serial: number; terminalInfo?: number; ignitionOn?: boolean }
+  | {
+      type: "alarm";
+      alarmType: string;
+      latitude?: number;
+      longitude?: number;
+      recordedAt?: Date;
+      serial: number;
+    }
+  | { type: "rfid"; rfidTag: string; serial: number }
   | { type: "unknown"; protocol: number; serial: number };
 
 export function buildAck(protocol: number, serial: number): Buffer {
@@ -103,7 +140,9 @@ export function parsePackets(buffer: Buffer): { messages: Gt06Message[]; remaini
       const latRaw = content.readUInt32BE(7);
       const lngRaw = content.readUInt32BE(11);
       const speedKmh = content[15]!;
-      const course = content.readUInt16BE(16) & 0x03ff;
+      const courseStatus = content.readUInt16BE(16);
+      const course = courseStatus & 0x03ff;
+      const ignitionOn = Boolean(courseStatus & 0x0400);
       messages.push({
         type: "location",
         latitude: decodeCoordinate(latRaw),
@@ -112,13 +151,30 @@ export function parsePackets(buffer: Buffer): { messages: Gt06Message[]; remaini
         course,
         recordedAt,
         serial,
+        ignitionOn,
       });
     } else if (protocol === 0x13) {
+      const terminalInfo = content[0];
       messages.push({
         type: "heartbeat",
         serial,
-        terminalInfo: content[0],
+        terminalInfo,
+        ignitionOn: terminalInfo != null ? Boolean(terminalInfo & 0x02) : undefined,
       });
+    } else if (protocol === 0x16 && content.length >= 7) {
+      const alarmCode = content[6]!;
+      const alarmType = GT06_ALARM_MAP[alarmCode] ?? `ALARM_${alarmCode}`;
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      let recordedAt: Date | undefined;
+      if (content.length >= 18) {
+        recordedAt = decodeDateTime(content.subarray(0, 6));
+        latitude = decodeCoordinate(content.readUInt32BE(7));
+        longitude = decodeCoordinate(content.readUInt32BE(11));
+      }
+      messages.push({ type: "alarm", alarmType, latitude, longitude, recordedAt, serial });
+    } else if (protocol === 0x17 && content.length >= 4) {
+      messages.push({ type: "rfid", rfidTag: decodeRfid(content.subarray(0, 8)), serial });
     } else {
       messages.push({ type: "unknown", protocol, serial });
     }

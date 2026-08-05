@@ -6,6 +6,9 @@ import { toVehicleDto } from "../lib/mappers.js";
 const createVehicleSchema = z.object({
   plate: z.string().min(1),
   label: z.string().min(1),
+  renavam: z.string().optional(),
+  plateState: z.string().optional(),
+  ownerDocument: z.string().optional(),
   trackerImei: z.string().optional(),
   cameraDeviceId: z.string().optional(),
   cameraModel: z.enum(["JC371"]).optional(),
@@ -15,6 +18,9 @@ const updateVehicleSchema = createVehicleSchema.partial().extend({
   trackerImei: z.string().nullable().optional(),
   cameraDeviceId: z.string().nullable().optional(),
   cameraModel: z.enum(["JC371"]).nullable().optional(),
+  renavam: z.string().nullable().optional(),
+  plateState: z.string().nullable().optional(),
+  ownerDocument: z.string().nullable().optional(),
 });
 
 export async function registerVehicleRoutes(app: FastifyInstance) {
@@ -52,6 +58,9 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
         organizationId: request.authUser!.organizationId,
         plate: parsed.data.plate.toUpperCase(),
         label: parsed.data.label,
+        renavam: parsed.data.renavam ?? null,
+        plateState: parsed.data.plateState?.toUpperCase() ?? null,
+        ownerDocument: parsed.data.ownerDocument ?? null,
         trackerImei: parsed.data.trackerImei ?? null,
         cameraDeviceId: parsed.data.cameraDeviceId ?? null,
         cameraModel: parsed.data.cameraModel ?? (parsed.data.cameraDeviceId ? "JC371" : null),
@@ -82,6 +91,7 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
       data: {
         ...parsed.data,
         plate: parsed.data.plate?.toUpperCase(),
+        plateState: parsed.data.plateState?.toUpperCase(),
       },
     });
 

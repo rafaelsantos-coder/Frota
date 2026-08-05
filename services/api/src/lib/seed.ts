@@ -1,5 +1,7 @@
 import { prisma } from "./prisma.js";
 import { hashPassword } from "./auth.js";
+import { ensureNotificationDefaults } from "./notifications.js";
+import { DEFAULT_CHECKLIST_ITEMS } from "@frota/shared";
 
 export async function getDefaultOrganization() {
   let org = await prisma.organization.findFirst({ where: { slug: "principal" } });
@@ -36,6 +38,8 @@ export async function ensureSeedData() {
     }
   }
 
+  await ensureNotificationDefaults(org.id, process.env.ADMIN_EMAIL);
+
   const jimiCount = await prisma.jimiIntegration.count({ where: { organizationId: org.id } });
   if (jimiCount === 0) {
     await prisma.jimiIntegration.create({
@@ -56,6 +60,19 @@ export async function ensureSeedData() {
         host: process.env.GT06_PUBLIC_HOST ?? "localhost",
         port: Number(process.env.GT06_PORT ?? 5023),
         enabled: true,
+      },
+    });
+  }
+
+  const checklistCount = await prisma.checklistTemplate.count({
+    where: { organizationId: org.id },
+  });
+  if (checklistCount === 0) {
+    await prisma.checklistTemplate.create({
+      data: {
+        organizationId: org.id,
+        name: "Checklist diário padrão",
+        items: DEFAULT_CHECKLIST_ITEMS,
       },
     });
   }

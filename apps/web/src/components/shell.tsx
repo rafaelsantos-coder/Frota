@@ -11,6 +11,11 @@ const links = [
   { href: "/alertas", label: "Alertas" },
   { href: "/cameras", label: "Câmeras" },
   { href: "/relatorios", label: "Relatórios" },
+  { href: "/motoristas", label: "Motoristas" },
+  { href: "/abastecimento", label: "Abastecimento" },
+  { href: "/manutencao", label: "Manutenção" },
+  { href: "/multas", label: "Multas" },
+  { href: "/checklist", label: "Checklist" },
   { href: "/cercas", label: "Cercas" },
   { href: "/vehicles", label: "Veículos" },
   { href: "/integrations", label: "Integrações" },
@@ -19,6 +24,10 @@ const links = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  if (pathname.startsWith("/motorista")) {
+    return <main className="main driver-app">{children}</main>;
+  }
 
   return (
     <div className="layout">
@@ -41,6 +50,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-user">
           <strong>{user?.name}</strong>
           <span>{user?.email}</span>
+          <Link href="/motorista" className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+            App Motorista
+          </Link>
           <button type="button" className="btn btn-secondary btn-sm" onClick={logout}>
             Sair
           </button>
