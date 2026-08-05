@@ -166,6 +166,14 @@ export interface DriverDto {
   currentVehicle?: { id: string; plate: string; label: string } | null;
 }
 
+export interface CnhPhotoBox {
+  /** Fração 0–1 da largura do documento */
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface CnhExtractResult {
   name?: string;
   cpf?: string;
@@ -173,6 +181,8 @@ export interface CnhExtractResult {
   cnh?: string;
   birthDate?: string;
   cnhExpiry?: string;
+  /** Região da foto 3x4 na CNH (coordenadas normalizadas 0–1) */
+  photoBox?: CnhPhotoBox;
   message?: string;
 }
 
@@ -355,6 +365,7 @@ export interface FuelEntryDto {
   id: string;
   vehicleId: string;
   driverId: string | null;
+  stationId: string | null;
   liters: number;
   amountPaid: number;
   odometerKm: number | null;
@@ -362,6 +373,25 @@ export interface FuelEntryDto {
   recordedAt: string;
   vehicle?: { id: string; plate: string; label: string };
   driver?: { id: string; name: string };
+  fuelStation?: { id: string; name: string };
+}
+
+export interface FuelStationDto {
+  id: string;
+  name: string;
+  cnpj: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  active: boolean;
+  entryCount?: number;
+}
+
+export interface FuelCsvImportResult {
+  imported: number;
+  skipped: number;
+  stationsCreated: number;
+  errors: Array<{ line: number; message: string }>;
 }
 
 export interface MaintenanceOrderDto {
@@ -588,11 +618,26 @@ export interface UpdateDriverInput {
 export interface CreateFuelEntryInput {
   vehicleId: string;
   driverId?: string;
+  stationId?: string;
   liters: number;
   amountPaid: number;
   odometerKm?: number;
   station?: string;
   recordedAt: string;
+}
+
+export interface CreateFuelStationInput {
+  name: string;
+  cnpj?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+}
+
+export interface ImportFuelCsvInput {
+  csv: string;
+  defaultStationId?: string;
+  createStations?: boolean;
 }
 
 export interface CreateMaintenanceOrderInput {

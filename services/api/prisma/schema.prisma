@@ -90,6 +90,7 @@ model Organization {
   notificationPrefs    NotificationPreference[]
   accessProfiles       AccessProfile[]
   auditLogs            AuditLog[]
+  fuelStations         FuelStation[]
 }
 
 model User {
@@ -387,12 +388,33 @@ model LiveStreamSession {
   @@index([vehicleId, startedAt(sort: Desc)])
 }
 
+model FuelStation {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  cnpj           String?
+  address        String?
+  city           String?
+  state          String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  fuelEntries FuelEntry[]
+
+  @@index([organizationId])
+  @@unique([organizationId, name])
+}
+
 model FuelEntry {
   id         String   @id @default(cuid())
   vehicleId  String
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   driverId   String?
   driver     Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  stationId  String?
+  fuelStation FuelStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   liters     Float
   amountPaid Float
   odometerKm Float?
@@ -401,6 +423,7 @@ model FuelEntry {
   createdAt  DateTime @default(now())
 
   @@index([vehicleId, recordedAt(sort: Desc)])
+  @@index([stationId])
 }
 
 model MaintenanceOrder {

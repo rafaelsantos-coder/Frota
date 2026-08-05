@@ -253,12 +253,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  importFuelCsv: (body: import("@frota/shared").ImportFuelCsvInput) =>
+    request<import("@frota/shared").FuelCsvImportResult>("/fuel-entries/import-csv", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   getFuelStats: () =>
     request<{
       totalLiters: number;
       totalCost: number;
       byVehicle: Array<{ vehicleId: string; plate: string; liters: number; cost: number }>;
     }>("/fuel-entries/stats"),
+  getFuelStations: () => request<import("@frota/shared").FuelStationDto[]>("/fuel-stations"),
+  createFuelStation: (body: import("@frota/shared").CreateFuelStationInput) =>
+    request<import("@frota/shared").FuelStationDto>("/fuel-stations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteFuelStation: (id: string) => request<void>(`/fuel-stations/${id}`, { method: "DELETE" }),
 
   getMaintenanceOrders: () =>
     request<import("@frota/shared").MaintenanceOrderDto[]>("/maintenance/orders"),

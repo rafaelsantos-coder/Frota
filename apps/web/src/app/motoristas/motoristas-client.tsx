@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { extractPhotoFromCnhDocument } from "@/lib/cnh-photo-crop";
 
 type DriverForm = {
   name: string;
@@ -94,6 +95,12 @@ export function MotoristasClient() {
       if (extracted.message && !extracted.name) {
         setExtractMsg(extracted.message);
       } else {
+        let photoData = "";
+        try {
+          photoData = await extractPhotoFromCnhDocument(file, extracted.photoBox);
+        } catch {
+          /* foto manual ainda disponível */
+        }
         setForm((prev) => ({
           ...prev,
           name: extracted.name ?? prev.name,
@@ -102,8 +109,13 @@ export function MotoristasClient() {
           cnh: extracted.cnh ?? prev.cnh,
           birthDate: extracted.birthDate ?? prev.birthDate,
           cnhExpiry: extracted.cnhExpiry ?? prev.cnhExpiry,
+          photoData: photoData || prev.photoData,
         }));
-        setExtractMsg("Dados extraídos da CNH. Revise antes de cadastrar.");
+        setExtractMsg(
+          photoData
+            ? "Dados e foto extraídos da CNH. Revise antes de cadastrar."
+            : "Dados extraídos da CNH. Revise a foto de perfil antes de cadastrar.",
+        );
       }
     } catch (err) {
       setExtractMsg(err instanceof Error ? err.message : "Erro na extração");
@@ -199,7 +211,7 @@ export function MotoristasClient() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={form.photoData} alt="Foto motorista" className="driver-photo-preview" />
                   ) : (
-                    <span className="muted">Sem foto</span>
+                    <span className="muted">Extraída automaticamente da CNH</span>
                   )}
                   <input
                     ref={photoInputRef}
@@ -211,6 +223,7 @@ export function MotoristasClient() {
                       if (file) void handlePhotoUpload(file);
                     }}
                   />
+                  <small className="muted">Opcional: substituir a foto extraída da CNH</small>
                 </div>
               </div>
             </div>

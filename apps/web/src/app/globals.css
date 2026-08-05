@@ -1160,6 +1160,34 @@ textarea {
   color: var(--muted);
 }
 
+.import-help {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.import-help code {
+  background: var(--orange-pale);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.import-result {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--orange-pale);
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.import-errors {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .driver-photo-row {
   margin-bottom: 8px;
 }

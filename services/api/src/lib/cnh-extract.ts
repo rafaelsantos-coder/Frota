@@ -1,6 +1,6 @@
 import type { CnhExtractResult } from "@frota/shared";
 
-const EXTRACT_PROMPT = `Você analisa documentos brasileiros de CNH (Carteira Nacional de Habilitação), incluindo CNH digital em PDF convertido para imagem ou foto da carteira física.
+const EXTRACT_PROMPT = `Você analisa documentos brasileiros de CNH (Carteira Nacional de Habilitação), incluindo CNH digital em PDF ou foto da carteira física.
 
 Extraia os dados e retorne APENAS um JSON válido com estas chaves (omitir se não encontrar):
 {
@@ -9,8 +9,16 @@ Extraia os dados e retorne APENAS um JSON válido com estas chaves (omitir se n�
   "rg": "número do documento de identidade se visível",
   "cnh": "número de registro da CNH",
   "birthDate": "YYYY-MM-DD",
-  "cnhExpiry": "YYYY-MM-DD data de validade"
+  "cnhExpiry": "YYYY-MM-DD data de validade",
+  "photoBox": {
+    "left": 0.05,
+    "top": 0.20,
+    "width": 0.22,
+    "height": 0.48
+  }
 }
+
+O campo photoBox deve delimitar APENAS a foto 3x4 do condutor na CNH (retrato), em coordenadas normalizadas de 0 a 1 em relação à largura e altura totais do documento/página.
 
 Use formato de data ISO. Para CPF mantenha pontuação se visível no documento.`;
 

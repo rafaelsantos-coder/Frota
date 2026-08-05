@@ -294,10 +294,33 @@ export function toAlertDto(alert: {
   };
 }
 
+export function toFuelStationDto(station: {
+  id: string;
+  name: string;
+  cnpj: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  active: boolean;
+  _count?: { fuelEntries: number };
+}): import("@frota/shared").FuelStationDto {
+  return {
+    id: station.id,
+    name: station.name,
+    cnpj: station.cnpj,
+    address: station.address,
+    city: station.city,
+    state: station.state,
+    active: station.active,
+    entryCount: station._count?.fuelEntries,
+  };
+}
+
 export function toFuelEntryDto(entry: {
   id: string;
   vehicleId: string;
   driverId: string | null;
+  stationId: string | null;
   liters: number;
   amountPaid: number;
   odometerKm: number | null;
@@ -305,18 +328,21 @@ export function toFuelEntryDto(entry: {
   recordedAt: Date;
   vehicle?: { id: string; plate: string; label: string };
   driver?: { id: string; name: string } | null;
+  fuelStation?: { id: string; name: string } | null;
 }): FuelEntryDto {
   return {
     id: entry.id,
     vehicleId: entry.vehicleId,
     driverId: entry.driverId,
+    stationId: entry.stationId,
     liters: entry.liters,
     amountPaid: entry.amountPaid,
     odometerKm: entry.odometerKm,
-    station: entry.station,
+    station: entry.station ?? entry.fuelStation?.name ?? null,
     recordedAt: entry.recordedAt.toISOString(),
     vehicle: entry.vehicle,
     driver: entry.driver ?? undefined,
+    fuelStation: entry.fuelStation ?? undefined,
   };
 }
 
