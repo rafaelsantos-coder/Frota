@@ -4,7 +4,7 @@
   "description": "App do motorista — checklist e score",
   "start_url": "/motorista",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#fff4eb",
+  "theme_color": "#ff5500",
   "icons": []
 }

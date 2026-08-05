@@ -4,26 +4,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { BackToMenu } from "@/components/back-to-menu";
+import { BrandLogo } from "@/components/brand-logo";
+import { FiberBackground } from "@/components/fiber-background";
 
 const links = [
-  { href: "/monitoramento", label: "Monitoramento" },
-  { href: "/", label: "Dashboard" },
-  { href: "/historico", label: "Histórico" },
-  { href: "/alertas", label: "Alertas" },
-  { href: "/cameras", label: "Câmeras" },
-  { href: "/relatorios", label: "Relatórios" },
-  { href: "/motoristas", label: "Motoristas" },
-  { href: "/abastecimento", label: "Abastecimento" },
-  { href: "/manutencao", label: "Manutenção" },
-  { href: "/multas", label: "Multas" },
-  { href: "/checklist", label: "Checklist" },
-  { href: "/cercas", label: "Cercas" },
-  { href: "/notificacoes", label: "Notificações" },
-  { href: "/vehicles", label: "Veículos" },
-  { href: "/integrations", label: "Integrações" },
+  { href: "/", label: "Indicadores", icon: "◫" },
+  { href: "/monitoramento", label: "Monitoramento", icon: "◎" },
+  { href: "/historico", label: "Histórico", icon: "↝" },
+  { href: "/alertas", label: "Alertas", icon: "⚠" },
+  { href: "/cameras", label: "Câmeras", icon: "▣" },
+  { href: "/relatorios", label: "Relatórios", icon: "▤" },
+  { href: "/motoristas", label: "Motoristas", icon: "👤" },
+  { href: "/abastecimento", label: "Combustível", icon: "⛽" },
+  { href: "/manutencao", label: "Manutenção", icon: "🔧" },
+  { href: "/multas", label: "Multas", icon: "📋" },
+  { href: "/checklist", label: "Checklist", icon: "✓" },
+  { href: "/cercas", label: "Cercas", icon: "⬡" },
+  { href: "/vehicles", label: "Minha frota", icon: "🚗" },
+  { href: "/integrations", label: "Integrações", icon: "⚙" },
+  { href: "/notificacoes", label: "Notificações", icon: "🔔" },
 ];
 
-const adminLinks = [{ href: "/admin", label: "Administração" }];
+const adminLinks = [{ href: "/admin", label: "Administração", icon: "⚡" }];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -38,11 +40,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (pathname.startsWith("/track/")) {
+    return <main className="main public-track-layout">{children}</main>;
+  }
+
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1>Sulnet</h1>
-        <p>Gestão de Frota</p>
+        <div className="sidebar-brand">
+          <BrandLogo variant="sidebar" />
+        </div>
         <nav className="nav">
           {links.map((link) => {
             const active =
@@ -51,6 +58,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 : pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link key={link.href} href={link.href} className={active ? "active" : undefined}>
+                <span className="nav-icon" aria-hidden="true">
+                  {link.icon}
+                </span>
                 {link.label}
               </Link>
             );
@@ -60,6 +70,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
               const active = pathname.startsWith("/admin");
               return (
                 <Link key={link.href} href={link.href} className={active ? "active" : undefined}>
+                  <span className="nav-icon" aria-hidden="true">
+                    {link.icon}
+                  </span>
                   {link.label}
                 </Link>
               );
@@ -68,18 +81,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-user">
           <strong>{user?.name}</strong>
           <span>{user?.email}</span>
-          <Link href="/motorista" className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+          <Link href="/motorista" className="btn btn-sidebar btn-sm">
             App Motorista
           </Link>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={logout}>
+          <button type="button" className="btn btn-sidebar-outline btn-sm" onClick={logout}>
             Sair
           </button>
         </div>
       </aside>
-      <main className="main">
-        <BackToMenu />
-        {children}
-      </main>
+      <div className="main-shell">
+        <header className="main-topbar">
+          <FiberBackground variant="strip" />
+        </header>
+        <main className="main">
+          <BackToMenu />
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
