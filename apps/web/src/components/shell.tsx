@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 
 const links = [
+  { href: "/monitoramento", label: "Monitoramento" },
   { href: "/", label: "Dashboard" },
+  { href: "/historico", label: "Histórico" },
+  { href: "/alertas", label: "Alertas" },
+  { href: "/cameras", label: "Câmeras" },
+  { href: "/relatorios", label: "Relatórios" },
+  { href: "/cercas", label: "Cercas" },
   { href: "/vehicles", label: "Veículos" },
   { href: "/integrations", label: "Integrações" },
 ];
@@ -20,15 +26,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <h1>Sulnet</h1>
         <p>Gestão de Frota</p>
         <nav className="nav">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={pathname === link.href ? "active" : undefined}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link) => {
+            const active =
+              link.href === "/"
+                ? pathname === "/"
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
+            return (
+              <Link key={link.href} href={link.href} className={active ? "active" : undefined}>
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="sidebar-user">
           <strong>{user?.name}</strong>

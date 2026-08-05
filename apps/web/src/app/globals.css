@@ -325,4 +325,292 @@ textarea {
   .two-col {
     grid-template-columns: 1fr;
   }
+
+  .monitor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-sidebar {
+    max-height: none;
+  }
+}
+
+/* Sprint 1+ — mapa e monitoramento */
+.fleet-map {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a2332;
+}
+
+.map-loading {
+  display: grid;
+  place-items: center;
+  height: 320px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.monitor-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  margin: -28px -32px;
+  min-height: calc(100vh - 0px);
+}
+
+.monitor-map {
+  padding: 16px 16px 16px 32px;
+}
+
+.monitor-map .page-header.compact {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.monitor-sidebar {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh);
+  overflow: auto;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.vehicle-list {
+  display: grid;
+  gap: 8px;
+}
+
+.vehicle-list-item {
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text);
+  display: grid;
+  gap: 4px;
+}
+
+.vehicle-list-item.selected {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.vehicle-list-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.vehicle-detail-panel h3 {
+  margin: 0 0 4px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filters-row .form-row {
+  min-width: 160px;
+}
+
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.quick-link-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.quick-link-card:hover {
+  border-color: var(--accent);
+}
+
+.quick-link-card span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.badge-alert-new {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.badge-alert-review {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.badge-alert-resolved {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.badge-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.badge-high {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.badge-medium {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--muted);
+}
+
+.badge-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.alert-inbox {
+  display: grid;
+  gap: 12px;
+}
+
+.alert-inbox-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.alert-inbox-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.alert-inbox-head strong {
+  display: block;
+}
+
+.alert-inbox-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.clip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.clip-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.clip-thumb {
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.video-placeholder {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+}
+
+.fence-list {
+  display: grid;
+  gap: 10px;
+}
+
+.fence-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.score {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.score-good {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.score-mid {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.score-bad {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.playback-controls {
+  margin-top: 12px;
+}
+
+.error-panel {
+  border-color: var(--danger);
+  color: #fca5a5;
 }

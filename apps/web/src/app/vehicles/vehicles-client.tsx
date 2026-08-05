@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { VehicleDto } from "@frota/shared";
 import { api } from "@/lib/api";
@@ -159,7 +160,10 @@ export function VehiclesClient() {
                     <StatusBadge status={vehicle.cameraStatus} />
                   </td>
                   <td>
-                    <button className="btn btn-danger" onClick={() => void handleDelete(vehicle.id)}>
+                    <Link href={`/vehicles/${vehicle.id}`} className="btn btn-secondary btn-sm">
+                      Abrir
+                    </Link>{" "}
+                    <button className="btn btn-danger btn-sm" onClick={() => void handleDelete(vehicle.id)}>
                       Remover
                     </button>
                   </td>

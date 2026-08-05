@@ -28,6 +28,12 @@ enum AlertSource {
   JIMI
 }
 
+enum AlertStatus {
+  NEW
+  REVIEWING
+  RESOLVED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -39,6 +45,7 @@ model Organization {
   vehicles         Vehicle[]
   jimiIntegrations JimiIntegration[]
   gt06Integrations Gt06Integration[]
+  geofences        Geofence[]
 }
 
 model User {
@@ -70,8 +77,9 @@ model Vehicle {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  positions Position[]
-  alerts    Alert[]
+  positions  Position[]
+  alerts     Alert[]
+  videoClips VideoClip[]
 
   @@unique([organizationId, plate])
   @@unique([organizationId, trackerImei])
@@ -109,6 +117,21 @@ model Gt06Integration {
   @@index([organizationId])
 }
 
+model Geofence {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  latitude       Float
+  longitude      Float
+  radiusMeters   Int          @default(500)
+  enabled        Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
 model Position {
   id         String         @id @default(cuid())
   vehicleId  String
@@ -132,11 +155,32 @@ model Alert {
   source    AlertSource
   type      String
   label     String
+  status    AlertStatus @default(NEW)
+  severity  String      @default("MEDIUM")
   payload   Json        @default("{}")
   createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  videoClips VideoClip[]
 
   @@index([createdAt(sort: Desc)])
   @@index([vehicleId])
+  @@index([status])
+}
+
+model VideoClip {
+  id         String    @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  alertId    String?
+  alert      Alert?    @relation(fields: [alertId], references: [id], onDelete: SetNull)
+  fileName   String
+  fileUrl    String?
+  channel    String?
+  recordedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([vehicleId, createdAt(sort: Desc)])
 }
 
 model TrackerSession {

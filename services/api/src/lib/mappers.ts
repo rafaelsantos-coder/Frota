@@ -1,11 +1,12 @@
 import type {
   AlertDto,
+  GeofenceDto,
   Gt06IntegrationDto,
   JimiIntegrationDto,
   PositionDto,
   VehicleDto,
+  VideoClipDto,
 } from "@frota/shared";
-import { prisma } from "./prisma.js";
 
 export function toVehicleDto(vehicle: {
   id: string;
@@ -73,6 +74,28 @@ export function toGt06IntegrationDto(integration: {
   };
 }
 
+export function toGeofenceDto(fence: {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): GeofenceDto {
+  return {
+    id: fence.id,
+    name: fence.name,
+    latitude: fence.latitude,
+    longitude: fence.longitude,
+    radiusMeters: fence.radiusMeters,
+    enabled: fence.enabled,
+    createdAt: fence.createdAt.toISOString(),
+    updatedAt: fence.updatedAt.toISOString(),
+  };
+}
+
 export function toPositionDto(position: {
   id: string;
   vehicleId: string;
@@ -95,14 +118,52 @@ export function toPositionDto(position: {
   };
 }
 
+export function toVideoClipDto(clip: {
+  id: string;
+  vehicleId: string;
+  alertId: string | null;
+  fileName: string;
+  fileUrl: string | null;
+  channel: string | null;
+  recordedAt: Date | null;
+  createdAt: Date;
+  vehicle?: { id: string; plate: string; label: string };
+}): VideoClipDto {
+  return {
+    id: clip.id,
+    vehicleId: clip.vehicleId,
+    alertId: clip.alertId,
+    fileName: clip.fileName,
+    fileUrl: clip.fileUrl,
+    channel: clip.channel,
+    recordedAt: clip.recordedAt?.toISOString() ?? null,
+    createdAt: clip.createdAt.toISOString(),
+    vehicle: clip.vehicle,
+  };
+}
+
 export function toAlertDto(alert: {
   id: string;
   vehicleId: string | null;
   source: AlertDto["source"];
   type: string;
   label: string;
+  status: AlertDto["status"];
+  severity: string;
   payload: unknown;
   createdAt: Date;
+  updatedAt: Date;
+  vehicle?: { id: string; plate: string; label: string } | null;
+  videoClips?: Array<{
+    id: string;
+    vehicleId: string;
+    alertId: string | null;
+    fileName: string;
+    fileUrl: string | null;
+    channel: string | null;
+    recordedAt: Date | null;
+    createdAt: Date;
+  }>;
 }): AlertDto {
   return {
     id: alert.id,
@@ -110,7 +171,12 @@ export function toAlertDto(alert: {
     source: alert.source,
     type: alert.type,
     label: alert.label,
+    status: alert.status,
+    severity: alert.severity,
     payload: alert.payload as Record<string, unknown>,
     createdAt: alert.createdAt.toISOString(),
+    updatedAt: alert.updatedAt.toISOString(),
+    vehicle: alert.vehicle ?? undefined,
+    videoClips: alert.videoClips?.map((c) => toVideoClipDto(c)),
   };
 }

@@ -53,6 +53,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function qs(params: Record<string, string | undefined>) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v) q.set(k, v);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<import("@frota/shared").AuthResponse>("/auth/login", {
@@ -64,13 +73,13 @@ export const api = {
     clearToken();
   },
   getVehicles: () => request<import("@frota/shared").VehicleDto[]>("/vehicles"),
+  getVehicle: (id: string) => request<import("@frota/shared").VehicleDto>(`/vehicles/${id}`),
   createVehicle: (body: import("@frota/shared").CreateVehicleInput) =>
     request<import("@frota/shared").VehicleDto>("/vehicles", {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  deleteVehicle: (id: string) =>
-    request<void>(`/vehicles/${id}`, { method: "DELETE" }),
+  deleteVehicle: (id: string) => request<void>(`/vehicles/${id}`, { method: "DELETE" }),
   getJimiIntegration: () =>
     request<import("@frota/shared").JimiIntegrationDto>("/integrations/jimi"),
   saveJimiIntegration: (body: import("@frota/shared").UpsertJimiIntegrationInput) =>
@@ -98,5 +107,54 @@ export const api = {
         position: import("@frota/shared").PositionDto;
       }>
     >("/positions/latest"),
+  getLivePositions: () =>
+    request<
+      Array<{
+        vehicle: import("@frota/shared").VehicleDto;
+        position: import("@frota/shared").PositionDto | null;
+      }>
+    >("/positions/live"),
+  getPositionHistory: (vehicleId: string, from?: string, to?: string) =>
+    request<import("@frota/shared").PositionDto[]>(
+      `/positions/history${qs({ vehicleId, from, to })}`,
+    ),
   getAlerts: () => request<import("@frota/shared").AlertDto[]>("/alerts"),
+  getAlertsInbox: (params?: {
+    vehicleId?: string;
+    type?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    limit?: string;
+  }) =>
+    request<import("@frota/shared").AlertDto[]>(
+      `/alerts/inbox${qs({
+        vehicleId: params?.vehicleId,
+        type: params?.type,
+        status: params?.status,
+        from: params?.from,
+        to: params?.to,
+        limit: params?.limit,
+      })}`,
+    ),
+  updateAlertStatus: (id: string, status: import("@frota/shared").AlertStatus) =>
+    request<import("@frota/shared").AlertDto>(`/alerts/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  getVideoClips: (vehicleId?: string) =>
+    request<import("@frota/shared").VideoClipDto[]>(
+      `/video-clips${qs({ vehicleId })}`,
+    ),
+  getFleetReport: (from?: string, to?: string) =>
+    request<import("@frota/shared").FleetReportDto>(
+      `/reports/fleet${qs({ from, to })}`,
+    ),
+  getGeofences: () => request<import("@frota/shared").GeofenceDto[]>("/geofences"),
+  createGeofence: (body: import("@frota/shared").CreateGeofenceInput) =>
+    request<import("@frota/shared").GeofenceDto>("/geofences", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteGeofence: (id: string) => request<void>(`/geofences/${id}`, { method: "DELETE" }),
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -23,7 +24,7 @@ export function DashboardClient() {
         ]);
         setStatus(statusData);
         setPositions(positionsData);
-        setAlerts(alertsData.slice(0, 8));
+        setAlerts(alertsData.slice(0, 6));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao carregar dashboard");
       }
@@ -38,6 +39,25 @@ export function DashboardClient() {
       </div>
 
       {error && <div className="panel">{error}</div>}
+
+      <div className="quick-links">
+        <Link href="/monitoramento" className="quick-link-card">
+          <strong>Monitoramento</strong>
+          <span>Mapa ao vivo da frota</span>
+        </Link>
+        <Link href="/alertas" className="quick-link-card">
+          <strong>Alertas</strong>
+          <span>DMS, velocidade, cercas</span>
+        </Link>
+        <Link href="/cameras" className="quick-link-card">
+          <strong>Câmeras</strong>
+          <span>Clipes JC371</span>
+        </Link>
+        <Link href="/relatorios" className="quick-link-card">
+          <strong>Relatórios</strong>
+          <span>Score e km rodado</span>
+        </Link>
+      </div>
 
       <div className="grid-cards">
         <div className="card">
@@ -69,8 +89,8 @@ export function DashboardClient() {
                 <tr>
                   <th>Veículo</th>
                   <th>Fonte</th>
-                  <th>Coordenadas</th>
                   <th>Velocidade</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -78,10 +98,10 @@ export function DashboardClient() {
                   <tr key={item.vehicle.id}>
                     <td>{item.vehicle.plate}</td>
                     <td>{item.position.source}</td>
-                    <td>
-                      {item.position.latitude.toFixed(5)}, {item.position.longitude.toFixed(5)}
-                    </td>
                     <td>{item.position.speedKmh ?? "—"} km/h</td>
+                    <td>
+                      <Link href={`/vehicles/${item.vehicle.id}`}>Perfil</Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -90,7 +110,7 @@ export function DashboardClient() {
         </section>
 
         <section className="panel">
-          <h3>Alertas DMS / tracker</h3>
+          <h3>Alertas recentes</h3>
           <div className="alert-list">
             {alerts.length === 0 ? (
               <p style={{ color: "var(--muted)" }}>Nenhum alerta registrado.</p>
@@ -105,6 +125,9 @@ export function DashboardClient() {
               ))
             )}
           </div>
+          <Link href="/alertas" className="btn btn-secondary btn-sm" style={{ marginTop: 12 }}>
+            Ver todos
+          </Link>
         </section>
       </div>
     </>

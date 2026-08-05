@@ -23,6 +23,8 @@ export type CameraModel = "JC371";
 
 export type DeviceStatus = "ONLINE" | "OFFLINE" | "UNKNOWN";
 
+export type AlertStatus = "NEW" | "REVIEWING" | "RESOLVED";
+
 export interface VehicleDto {
   id: string;
   plate: string;
@@ -34,6 +36,10 @@ export interface VehicleDto {
   cameraStatus: DeviceStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VehicleWithPositionDto extends VehicleDto {
+  position: PositionDto | null;
 }
 
 export interface JimiIntegrationDto {
@@ -56,6 +62,17 @@ export interface Gt06IntegrationDto {
   updatedAt: string;
 }
 
+export interface GeofenceDto {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PositionDto {
   id: string;
   vehicleId: string;
@@ -73,8 +90,53 @@ export interface AlertDto {
   source: "GT06" | "JIMI";
   type: string;
   label: string;
+  status: AlertStatus;
+  severity: string;
   payload: Record<string, unknown>;
   createdAt: string;
+  updatedAt: string;
+  vehicle?: { id: string; plate: string; label: string };
+  videoClips?: VideoClipDto[];
+}
+
+export interface VideoClipDto {
+  id: string;
+  vehicleId: string;
+  alertId: string | null;
+  fileName: string;
+  fileUrl: string | null;
+  channel: string | null;
+  recordedAt: string | null;
+  createdAt: string;
+  vehicle?: { id: string; plate: string; label: string };
+}
+
+export interface FleetReportVehicleDto {
+  vehicleId: string;
+  plate: string;
+  label: string;
+  distanceKm: number;
+  maxSpeedKmh: number;
+  avgSpeedKmh: number;
+  stopCount: number;
+  movingMinutes: number;
+  alertCount: number;
+  dmsAlertCount: number;
+  speedViolationCount: number;
+  score: number;
+}
+
+export interface FleetReportDto {
+  from: string;
+  to: string;
+  speedLimitKmh: number;
+  vehicles: FleetReportVehicleDto[];
+  totals: {
+    distanceKm: number;
+    alertCount: number;
+    dmsAlertCount: number;
+    avgScore: number;
+  };
 }
 
 export interface CreateVehicleInput {
@@ -109,6 +171,22 @@ export interface UpsertGt06IntegrationInput {
   enabled?: boolean;
 }
 
+export interface CreateGeofenceInput {
+  name: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters?: number;
+  enabled?: boolean;
+}
+
+export interface UpdateGeofenceInput {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  enabled?: boolean;
+}
+
 export const JIMI_DMS_EVENTS = [
   "SMOKING",
   "PHONECALLING",
@@ -125,3 +203,16 @@ export const JIMI_ADAS_EVENTS = [
   "VEHICLETOOCLOSE",
   "PEDESTRIAN",
 ] as const;
+
+export const ALERT_SEVERITY: Record<string, string> = {
+  SMOKING: "HIGH",
+  PHONECALLING: "HIGH",
+  DISTRACTION: "HIGH",
+  FATIGUE: "CRITICAL",
+  EYESCLOSED: "CRITICAL",
+  FRONTCollision: "CRITICAL",
+  LANEDEPARTURE: "HIGH",
+  OVERSPEED: "MEDIUM",
+  GEOFENCE_ENTER: "MEDIUM",
+  GEOFENCE_EXIT: "MEDIUM",
+};
