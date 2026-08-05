@@ -24,13 +24,27 @@ Use formato de data ISO. Para CPF mantenha pontuação se visível no documento.
 
 type AiProvider = "gemini" | "openai";
 
-function resolveProvider(): AiProvider | null {
+class AiProviderError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly retryable = false,
+  ) {
+    super(message);
+  }
+}
+
+function resolveProviderOrder(): AiProvider[] {
   const forced = process.env.CNH_AI_PROVIDER?.toLowerCase();
-  if (forced === "gemini" && process.env.GEMINI_API_KEY) return "gemini";
-  if (forced === "openai" && process.env.OPENAI_API_KEY) return "openai";
-  if (process.env.GEMINI_API_KEY) return "gemini";
-  if (process.env.OPENAI_API_KEY) return "openai";
-  return null;
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+  const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
+
+  if (forced === "openai" && hasOpenAi) return ["openai"];
+  if (forced === "gemini" && hasGemini) return ["gemini"];
+  if (hasGemini && hasOpenAi) return ["gemini", "openai"];
+  if (hasGemini) return ["gemini"];
+  if (hasOpenAi) return ["openai"];
+  return [];
 }
 
 function normalizeBase64(imageBase64: string, mimeType: string) {
@@ -49,9 +63,40 @@ function parseJsonContent(text: string): CnhExtractResult {
   return JSON.parse(json) as CnhExtractResult;
 }
 
-async function extractWithGemini(base64: string, mime: string): Promise<CnhExtractResult> {
+function geminiModels(): string[] {
+  const preferred = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  return [...new Set([preferred, "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash"])];
+}
+
+function friendlyProviderError(provider: AiProvider, status: number, raw: string): AiProviderError {
+  if (status === 429) {
+    return new AiProviderError(
+      "Cota da IA esgotada (limite diário). Gere uma nova chave em aistudio.google.com/apikey, atualize GEMINI_API_KEY no Railway, ou preencha os campos manualmente.",
+      429,
+      true,
+    );
+  }
+  if (status === 401 || status === 403) {
+    return new AiProviderError(
+      provider === "gemini"
+        ? "Chave Gemini inválida. Use uma chave AIza… do Google AI Studio em GEMINI_API_KEY."
+        : "Chave OpenAI inválida. Verifique OPENAI_API_KEY no Railway.",
+      status,
+    );
+  }
+  return new AiProviderError(
+    `${provider === "gemini" ? "Gemini" : "OpenAI"} indisponível (${status}). Tente novamente ou preencha manualmente.`,
+    status,
+    status >= 500,
+  );
+}
+
+async function extractWithGemini(
+  base64: string,
+  mime: string,
+  model: string,
+): Promise<CnhExtractResult> {
   const apiKey = process.env.GEMINI_API_KEY!;
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
@@ -75,14 +120,14 @@ async function extractWithGemini(base64: string, mime: string): Promise<CnhExtra
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini: ${response.status} ${errText.slice(0, 200)}`);
+    throw friendlyProviderError("gemini", response.status, errText);
   }
 
   const data = (await response.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini retornou resposta vazia");
+  if (!text) throw new AiProviderError("Gemini retornou resposta vazia", undefined, true);
   return parseJsonContent(text);
 }
 
@@ -112,23 +157,41 @@ async function extractWithOpenAI(dataUrl: string): Promise<CnhExtractResult> {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`OpenAI: ${response.status} ${errText.slice(0, 200)}`);
+    throw friendlyProviderError("openai", response.status, errText);
   }
 
   const data = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("OpenAI retornou resposta vazia");
+  if (!content) throw new AiProviderError("OpenAI retornou resposta vazia", undefined, true);
   return parseJsonContent(content);
+}
+
+async function tryGemini(base64: string, mime: string): Promise<CnhExtractResult> {
+  let lastError: AiProviderError | null = null;
+  for (const model of geminiModels()) {
+    try {
+      return await extractWithGemini(base64, mime, model);
+    } catch (error) {
+      if (error instanceof AiProviderError) {
+        lastError = error;
+        if (error.status === 429) break;
+        if (!error.retryable) throw error;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError ?? new AiProviderError("Gemini indisponível", undefined, true);
 }
 
 export async function extractCnhFromImage(
   imageBase64: string,
   mimeType: string,
 ): Promise<CnhExtractResult> {
-  const provider = resolveProvider();
-  if (!provider) {
+  const providers = resolveProviderOrder();
+  if (providers.length === 0) {
     return {
       message:
         "Configure GEMINI_API_KEY ou OPENAI_API_KEY no Railway (serviço api). Recomendado: Gemini (grátis no AI Studio).",
@@ -136,18 +199,35 @@ export async function extractCnhFromImage(
   }
 
   const { dataUrl, base64, mime } = normalizeBase64(imageBase64, mimeType);
+  const errors: string[] = [];
 
-  if (mime === "application/pdf" && provider === "openai") {
-    return {
-      message:
-        "PDF da CNH digital requer Gemini (GEMINI_API_KEY). Ou envie captura em JPEG/PNG.",
-    };
+  for (const provider of providers) {
+    if (provider === "openai" && mime === "application/pdf") {
+      errors.push("OpenAI não lê PDF — use Gemini ou envie captura JPEG/PNG da CNH.");
+      continue;
+    }
+
+    try {
+      if (provider === "gemini") {
+        return await tryGemini(base64, mime);
+      }
+      return await extractWithOpenAI(dataUrl);
+    } catch (error) {
+      const message =
+        error instanceof AiProviderError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Erro na extração";
+      errors.push(message);
+    }
   }
 
-  if (provider === "gemini") {
-    return extractWithGemini(base64, mime);
-  }
-  return extractWithOpenAI(dataUrl);
+  return {
+    message:
+      errors[0] ??
+      "Não foi possível extrair a CNH com IA. Preencha os campos manualmente ou tente captura em JPEG/PNG.",
+  };
 }
 
 export function parseDateOnly(value?: string | null): Date | null {

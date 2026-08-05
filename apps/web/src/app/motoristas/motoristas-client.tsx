@@ -93,7 +93,16 @@ export function MotoristasClient() {
     try {
       const extracted = await api.extractCnhFromDocument(dataUrlBase64(dataUrl), mimeType);
       if (extracted.message && !extracted.name) {
-        setExtractMsg(extracted.message);
+        let photoData = "";
+        try {
+          photoData = await extractPhotoFromCnhDocument(file, extracted.photoBox);
+        } catch {
+          /* foto estimada opcional */
+        }
+        if (photoData) {
+          setForm((prev) => ({ ...prev, photoData }));
+        }
+        setExtractMsg(`${extracted.message}${photoData ? " Foto estimada da CNH aplicada." : ""}`);
       } else {
         let photoData = "";
         try {

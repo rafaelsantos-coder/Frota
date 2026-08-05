@@ -51,9 +51,12 @@ export async function registerDriverRoutes(app: FastifyInstance) {
       const result = await extractCnhFromImage(parsed.data.imageBase64, parsed.data.mimeType);
       return result;
     } catch (error) {
-      return reply.status(502).send({
-        error: error instanceof Error ? error.message : "Erro ao extrair dados da CNH",
-      });
+      return {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro ao extrair dados da CNH. Preencha manualmente.",
+      };
     }
   });
 
