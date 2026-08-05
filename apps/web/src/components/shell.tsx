@@ -31,7 +31,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  if (pathname.startsWith("/motorista")) {
+  const isDriverApp =
+    pathname === "/motorista" || pathname.startsWith("/motorista/");
+
+  if (isDriverApp) {
     return (
       <main className="main driver-app">
         <BackToMenu />

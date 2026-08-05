@@ -52,8 +52,15 @@ export function MotoristasClient() {
   const [assignMap, setAssignMap] = useState<Record<string, string>>({});
   const [extracting, setExtracting] = useState(false);
   const [extractMsg, setExtractMsg] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const cnhInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const avgScore =
+    ranking.length > 0
+      ? Math.round(ranking.reduce((sum, r) => sum + r.score, 0) / ranking.length)
+      : null;
+  const topScore = ranking.length > 0 ? Math.max(...ranking.map((r) => r.score)) : null;
 
   async function load() {
     const [d, v, r] = await Promise.all([
@@ -121,63 +128,90 @@ export function MotoristasClient() {
     });
     setForm(emptyForm);
     setExtractMsg(null);
+    setShowForm(false);
     await load();
   }
 
   return (
     <>
       <div className="page-header">
-        <h2>Motoristas</h2>
-        <p>Cadastro com CNH digital (IA), foto 4x4, RFID/iButton e ranking</p>
+        <div>
+          <h2>Motoristas</h2>
+          <p>Cadastro com CNH digital (IA), foto 4x4, RFID/iButton e ranking</p>
+        </div>
+        <div className="page-header-actions">
+          <button
+            type="button"
+            className={showForm ? "btn btn-secondary" : "btn"}
+            onClick={() => setShowForm((open) => !open)}
+          >
+            {showForm ? "Fechar formulário" : "Novo motorista"}
+          </button>
+        </div>
       </div>
 
-      <div className="two-col">
+      <div className="grid-cards">
+        <div className="card">
+          <h3>Motoristas cadastrados</h3>
+          <div className="value">{drivers.length}</div>
+        </div>
+        <div className="card">
+          <h3>Score médio (30 dias)</h3>
+          <div className="value">{avgScore ?? "—"}</div>
+        </div>
+        <div className="card">
+          <h3>Melhor score</h3>
+          <div className="value">{topScore ?? "—"}</div>
+        </div>
+      </div>
+
+      {showForm && (
         <section className="panel">
           <h3>Novo motorista</h3>
-          <form onSubmit={(e) => void handleCreate(e)} className="form-stack">
-            <div className="form-row">
-              <label>CNH digital / foto da carteira</label>
-              <input
-                ref={cnhInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="file-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleCnhUpload(file);
-                }}
-              />
-              <small className="muted">
-                Anexe a CNH digital (captura de tela ou PDF exportado como imagem). A IA preenche os
-                campos automaticamente.
-              </small>
-              {extracting && <p className="muted">Extraindo dados com IA…</p>}
-              {extractMsg && <p className="muted">{extractMsg}</p>}
-            </div>
-
-            <div className="form-row driver-photo-row">
-              <label>Foto do motorista (4x4)</label>
-              <div className="driver-photo-box">
-                {form.photoData ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.photoData} alt="Foto motorista" className="driver-photo-preview" />
-                ) : (
-                  <span className="muted">Sem foto</span>
-                )}
+          <form onSubmit={(e) => void handleCreate(e)} className="form-grid form-grid-2">
+            <div className="form-row form-row-span-2 driver-form-uploads">
+              <div className="form-row">
+                <label>CNH digital / foto da carteira</label>
                 <input
-                  ref={photoInputRef}
+                  ref={cnhInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   className="file-input"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) void handlePhotoUpload(file);
+                    if (file) void handleCnhUpload(file);
                   }}
                 />
+                <small className="muted">
+                  Anexe a CNH digital (captura ou imagem). A IA preenche os campos automaticamente.
+                </small>
+                {extracting && <p className="muted">Extraindo dados com IA…</p>}
+                {extractMsg && <p className="muted">{extractMsg}</p>}
+              </div>
+              <div className="form-row driver-photo-row">
+                <label>Foto do motorista (4x4)</label>
+                <div className="driver-photo-box">
+                  {form.photoData ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.photoData} alt="Foto motorista" className="driver-photo-preview" />
+                  ) : (
+                    <span className="muted">Sem foto</span>
+                  )}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="file-input"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handlePhotoUpload(file);
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="form-row">
+            <div className="form-row form-row-span-2">
               <label>Nome</label>
               <input
                 value={form.name}
@@ -198,6 +232,13 @@ export function MotoristasClient() {
               <input value={form.cnh} onChange={(e) => setForm({ ...form, cnh: e.target.value })} />
             </div>
             <div className="form-row">
+              <label>RFID / iButton</label>
+              <input
+                value={form.rfidTag}
+                onChange={(e) => setForm({ ...form, rfidTag: e.target.value })}
+              />
+            </div>
+            <div className="form-row">
               <label>Data de nascimento</label>
               <input
                 type="date"
@@ -213,21 +254,18 @@ export function MotoristasClient() {
                 onChange={(e) => setForm({ ...form, cnhExpiry: e.target.value })}
               />
             </div>
-            <div className="form-row">
-              <label>RFID / iButton</label>
-              <input
-                value={form.rfidTag}
-                onChange={(e) => setForm({ ...form, rfidTag: e.target.value })}
-              />
+            <div className="form-row form-row-span-2 form-actions">
+              <button type="submit" className="btn" disabled={extracting}>
+                Cadastrar motorista
+              </button>
             </div>
-            <button type="submit" className="btn" disabled={extracting}>
-              Cadastrar
-            </button>
           </form>
         </section>
+      )}
 
-        <section className="panel">
-          <h3>Ranking (30 dias)</h3>
+      <section className="panel">
+        <h3>Ranking (30 dias)</h3>
+        <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -238,27 +276,36 @@ export function MotoristasClient() {
               </tr>
             </thead>
             <tbody>
-              {ranking.map((r) => (
-                <tr key={r.driverId}>
-                  <td>{r.name}</td>
-                  <td>
-                    <span
-                      className={`score score-${r.score >= 80 ? "good" : r.score >= 50 ? "mid" : "bad"}`}
-                    >
-                      {r.score}
-                    </span>
+              {ranking.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="muted">
+                    Nenhum dado de ranking no período.
                   </td>
-                  <td>{r.dmsAlertCount}</td>
-                  <td>{r.speedViolationCount}</td>
                 </tr>
-              ))}
+              ) : (
+                ranking.map((r) => (
+                  <tr key={r.driverId}>
+                    <td>{r.name}</td>
+                    <td>
+                      <span
+                        className={`score score-${r.score >= 80 ? "good" : r.score >= 50 ? "mid" : "bad"}`}
+                      >
+                        {r.score}
+                      </span>
+                    </td>
+                    <td>{r.dmsAlertCount}</td>
+                    <td>{r.speedViolationCount}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        </section>
-      </div>
+        </div>
+      </section>
 
       <section className="panel">
         <h3>Motoristas cadastrados ({drivers.length})</h3>
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -324,6 +371,7 @@ export function MotoristasClient() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
     </>
   );
