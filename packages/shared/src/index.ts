@@ -108,9 +108,11 @@ export interface Gt06IntegrationDto {
 export interface GeofenceDto {
   id: string;
   name: string;
+  type: "CIRCLE" | "POLYGON";
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  polygon: Array<[number, number]> | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -394,8 +396,42 @@ export interface DashboardWidget {
 export interface NotificationPreferenceDto {
   id: string;
   email: string | null;
+  telegramChatId: string | null;
   onCritical: boolean;
   onHigh: boolean;
+  onTelegram: boolean;
+}
+
+export interface ShareLinkDto {
+  id: string;
+  vehicleId: string;
+  token: string;
+  url: string;
+  expiresAt: string;
+  revoked: boolean;
+  createdAt: string;
+}
+
+export interface PublicTrackDto {
+  label: string;
+  plate: string;
+  latitude: number | null;
+  longitude: number | null;
+  speedKmh: number | null;
+  recordedAt: string | null;
+  commStatus: "ONLINE" | "OFFLINE" | "UNKNOWN";
+  expiresAt: string;
+}
+
+export interface DeviceCommandDto {
+  id: string;
+  vehicleId: string;
+  imei: string;
+  type: "BLOCK" | "UNBLOCK";
+  status: "PENDING" | "SENT" | "FAILED" | "ACKNOWLEDGED";
+  error: string | null;
+  createdAt: string;
+  sentAt: string | null;
 }
 
 export interface CreateVehicleInput {
@@ -518,17 +554,21 @@ export interface UpsertGt06IntegrationInput {
 
 export interface CreateGeofenceInput {
   name: string;
+  type?: "CIRCLE" | "POLYGON";
   latitude: number;
   longitude: number;
   radiusMeters?: number;
+  polygon?: Array<[number, number]>;
   enabled?: boolean;
 }
 
 export interface UpdateGeofenceInput {
   name?: string;
+  type?: "CIRCLE" | "POLYGON";
   latitude?: number;
   longitude?: number;
   radiusMeters?: number;
+  polygon?: Array<[number, number]> | null;
   enabled?: boolean;
 }
 

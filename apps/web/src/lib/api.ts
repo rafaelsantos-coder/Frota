@@ -14,6 +14,26 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+async function publicRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const response = await fetch(`${API_URL}${path}`, {
@@ -293,5 +313,20 @@ export const api = {
     request<import("@frota/shared").NotificationPreferenceDto>("/notifications/preferences", {
       method: "PUT",
       body: JSON.stringify(body),
+    }),
+
+  createShareLink: (vehicleId: string, expiresInHours = 24) =>
+    request<import("@frota/shared").ShareLinkDto>(`/vehicles/${vehicleId}/share-links`, {
+      method: "POST",
+      body: JSON.stringify({ expiresInHours }),
+    }),
+
+  getPublicTrack: (token: string) =>
+    publicRequest<import("@frota/shared").PublicTrackDto>(`/public/track/${token}`),
+
+  sendVehicleCommand: (vehicleId: string, type: "BLOCK" | "UNBLOCK") =>
+    request<import("@frota/shared").DeviceCommandDto>(`/vehicles/${vehicleId}/commands`, {
+      method: "POST",
+      body: JSON.stringify({ type }),
     }),
 };

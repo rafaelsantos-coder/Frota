@@ -19,6 +19,8 @@ import { registerOperationsRoutes } from "./routes/operations.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerExportRoutes } from "./routes/export.js";
+import { registerShareRoutes } from "./routes/share.js";
+import { registerCommandRoutes } from "./routes/commands.js";
 
 const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3001);
 const host = process.env.API_HOST ?? "0.0.0.0";
@@ -67,6 +69,8 @@ await registerOperationsRoutes(app);
 await registerMediaRoutes(app);
 await registerDashboardRoutes(app);
 await registerExportRoutes(app);
+await registerShareRoutes(app);
+await registerCommandRoutes(app);
 
 await ensureSeedData();
 

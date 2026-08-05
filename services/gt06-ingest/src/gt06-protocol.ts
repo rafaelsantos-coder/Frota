@@ -109,6 +109,34 @@ export function buildAck(protocol: number, serial: number): Buffer {
   return Buffer.concat([frame, Buffer.from([0x0d, 0x0a])]);
 }
 
+let commandSerial = 1;
+
+export function buildServerCommand(command: string, serial?: number): Buffer {
+  const serialNum = serial ?? commandSerial++ % 65536;
+  const serverFlag = Buffer.from([0x00, 0x00, 0x00, 0x01]);
+  const language = Buffer.from([0x00, 0x02]);
+  const cmdBytes = Buffer.from(command, "ascii");
+  const infoContent = Buffer.concat([serverFlag, language, cmdBytes]);
+  const lengthByte = 1 + infoContent.length + 2;
+
+  const frame = Buffer.alloc(3 + lengthByte + 2);
+  frame[0] = 0x78;
+  frame[1] = 0x78;
+  frame[2] = lengthByte;
+  frame[3] = 0x80;
+  infoContent.copy(frame, 4);
+  frame.writeUInt16BE(serialNum, 4 + infoContent.length);
+  const crc = crc16X25(frame.subarray(2, 4 + infoContent.length + 2));
+  frame[4 + infoContent.length] = (crc >> 8) & 0xff;
+  frame[4 + infoContent.length + 1] = crc & 0xff;
+  return Buffer.concat([frame, Buffer.from([0x0d, 0x0a])]);
+}
+
+export const GT06_COMMAND_STRINGS = {
+  BLOCK: process.env.GT06_BLOCK_CMD ?? "RELAY,1#",
+  UNBLOCK: process.env.GT06_UNBLOCK_CMD ?? "RELAY,0#",
+} as const;
+
 export function parsePackets(buffer: Buffer): { messages: Gt06Message[]; remaining: Buffer } {
   const messages: Gt06Message[] = [];
   let offset = 0;

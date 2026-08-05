@@ -1,5 +1,24 @@
 import { prisma } from "./prisma.js";
 
+async function sendTelegram(chatId: string, text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`[notify] telegram failed: ${response.status} ${body}`);
+    }
+  } catch (error) {
+    console.error("[notify] telegram error", error);
+  }
+}
+
 export async function notifyCriticalAlert(alert: {
   type: string;
   label: string;
@@ -24,10 +43,15 @@ export async function notifyCriticalAlert(alert: {
   for (const pref of prefs) {
     if (alert.severity === "CRITICAL" && !pref.onCritical) continue;
     if (alert.severity === "HIGH" && !pref.onHigh) continue;
+
+    const message = `[${alert.severity}] ${alert.label} (${alert.type})`;
+
     if (pref.email) {
-      console.log(
-        `[notify] email=${pref.email} severity=${alert.severity} type=${alert.type} label=${alert.label}`,
-      );
+      console.log(`[notify] email=${pref.email} ${message}`);
+    }
+
+    if (pref.onTelegram && pref.telegramChatId) {
+      await sendTelegram(pref.telegramChatId, `<b>Sulnet Frota</b>\n${message}`);
     }
   }
 }
@@ -36,7 +60,13 @@ export async function ensureNotificationDefaults(organizationId: string, email?:
   const existing = await prisma.notificationPreference.findFirst({ where: { organizationId } });
   if (!existing) {
     await prisma.notificationPreference.create({
-      data: { organizationId, email: email ?? null, onCritical: true, onHigh: true },
+      data: {
+        organizationId,
+        email: email ?? null,
+        onCritical: true,
+        onHigh: true,
+        onTelegram: false,
+      },
     });
   }
 }

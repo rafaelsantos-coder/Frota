@@ -121,19 +121,26 @@ export function toGt06IntegrationDto(integration: {
 export function toGeofenceDto(fence: {
   id: string;
   name: string;
+  type: string;
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  polygon: unknown;
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }): GeofenceDto {
+  const polygon = Array.isArray(fence.polygon)
+    ? (fence.polygon as Array<[number, number]>)
+    : null;
   return {
     id: fence.id,
     name: fence.name,
+    type: fence.type === "POLYGON" ? "POLYGON" : "CIRCLE",
     latitude: fence.latitude,
     longitude: fence.longitude,
     radiusMeters: fence.radiusMeters,
+    polygon,
     enabled: fence.enabled,
     createdAt: fence.createdAt.toISOString(),
     updatedAt: fence.updatedAt.toISOString(),

@@ -6,7 +6,7 @@ import {
   findVehicleByTrackerGlobally,
 } from "./integrations.js";
 import { toAlertDto, toPositionDto } from "../lib/mappers.js";
-import { alertSeverity, isInsideGeofence } from "../lib/geo.js";
+import { alertSeverity, geofenceContains } from "../lib/geo.js";
 import {
   assignDriverToVehicle,
   resolveDriverByRfid,
@@ -83,13 +83,17 @@ async function checkGeofences(
   }
 
   for (const fence of fences) {
-    const inside = isInsideGeofence(lat, lng, fence.latitude, fence.longitude, fence.radiusMeters);
+    const inside = geofenceContains(lat, lng, fence);
     const key = `geofence:${fence.id}`;
     const lastAlert = await prisma.alert.findFirst({
-      where: { vehicleId, type: { in: ["GEOFENCE_ENTER", "GEOFENCE_EXIT"] } },
+      where: {
+        vehicleId,
+        type: { in: ["GEOFENCE_ENTER", "GEOFENCE_EXIT"] },
+        payload: { path: ["geofenceId"], equals: fence.id },
+      },
       orderBy: { createdAt: "desc" },
     });
-    const lastState = (lastAlert?.payload as { key?: string; inside?: boolean } | undefined)?.inside;
+    const lastState = (lastAlert?.payload as { inside?: boolean } | undefined)?.inside;
 
     if (inside && lastState !== true) {
       await prisma.alert.create({

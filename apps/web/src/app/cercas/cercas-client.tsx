@@ -12,9 +12,12 @@ const FleetMap = dynamic(
 export function CercasClient() {
   const [fences, setFences] = useState<Awaited<ReturnType<typeof api.getGeofences>>>([]);
   const [name, setName] = useState("");
+  const [fenceType, setFenceType] = useState<"CIRCLE" | "POLYGON">("CIRCLE");
   const [lat, setLat] = useState("-23.5505");
   const [lng, setLng] = useState("-46.6333");
   const [radius, setRadius] = useState("500");
+  const [polygonPoints, setPolygonPoints] = useState<Array<[number, number]>>([]);
+  const [drawMode, setDrawMode] = useState(false);
 
   async function load() {
     setFences(await api.getGeofences());
@@ -26,12 +29,26 @@ export function CercasClient() {
 
   async function createFence(e: React.FormEvent) {
     e.preventDefault();
-    await api.createGeofence({
-      name,
-      latitude: Number(lat),
-      longitude: Number(lng),
-      radiusMeters: Number(radius),
-    });
+    if (fenceType === "POLYGON") {
+      if (polygonPoints.length < 3) return;
+      await api.createGeofence({
+        name,
+        type: "POLYGON",
+        latitude: polygonPoints[0]![0],
+        longitude: polygonPoints[0]![1],
+        polygon: polygonPoints,
+      });
+      setPolygonPoints([]);
+      setDrawMode(false);
+    } else {
+      await api.createGeofence({
+        name,
+        type: "CIRCLE",
+        latitude: Number(lat),
+        longitude: Number(lng),
+        radiusMeters: Number(radius),
+      });
+    }
     setName("");
     void load();
   }
@@ -40,7 +57,7 @@ export function CercasClient() {
     <>
       <div className="page-header">
         <h2>Cercas eletrônicas</h2>
-        <p>Defina áreas e receba alertas de entrada/saída no mapa de monitoramento</p>
+        <p>Círculos ou polígonos — alertas de entrada/saída no monitoramento</p>
       </div>
 
       <div className="two-col">
@@ -51,18 +68,62 @@ export function CercasClient() {
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="form-row">
-            <label>Latitude</label>
-            <input value={lat} onChange={(e) => setLat(e.target.value)} required />
+            <label>Tipo</label>
+            <select
+              value={fenceType}
+              onChange={(e) => {
+                setFenceType(e.target.value as "CIRCLE" | "POLYGON");
+                setDrawMode(e.target.value === "POLYGON");
+                setPolygonPoints([]);
+              }}
+            >
+              <option value="CIRCLE">Círculo (raio)</option>
+              <option value="POLYGON">Polígono</option>
+            </select>
           </div>
-          <div className="form-row">
-            <label>Longitude</label>
-            <input value={lng} onChange={(e) => setLng(e.target.value)} required />
-          </div>
-          <div className="form-row">
-            <label>Raio (metros)</label>
-            <input value={radius} onChange={(e) => setRadius(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn">
+
+          {fenceType === "CIRCLE" ? (
+            <>
+              <div className="form-row">
+                <label>Latitude</label>
+                <input value={lat} onChange={(e) => setLat(e.target.value)} required />
+              </div>
+              <div className="form-row">
+                <label>Longitude</label>
+                <input value={lng} onChange={(e) => setLng(e.target.value)} required />
+              </div>
+              <div className="form-row">
+                <label>Raio (metros)</label>
+                <input value={radius} onChange={(e) => setRadius(e.target.value)} required />
+              </div>
+            </>
+          ) : (
+            <div className="form-row">
+              <label>Vértices no mapa</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setDrawMode((v) => !v)}
+                >
+                  {drawMode ? "Parar desenho" : "Desenhar no mapa"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setPolygonPoints([])}
+                >
+                  Limpar ({polygonPoints.length})
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn"
+            disabled={fenceType === "POLYGON" && polygonPoints.length < 3}
+          >
             Criar cerca
           </button>
         </form>
@@ -74,7 +135,9 @@ export function CercasClient() {
               <div key={f.id} className="fence-item">
                 <strong>{f.name}</strong>
                 <span className="muted">
-                  {f.latitude.toFixed(5)}, {f.longitude.toFixed(5)} · {f.radiusMeters}m
+                  {f.type === "POLYGON"
+                    ? `Polígono · ${f.polygon?.length ?? 0} vértices`
+                    : `${f.latitude.toFixed(5)}, ${f.longitude.toFixed(5)} · ${f.radiusMeters}m`}
                 </span>
                 <button
                   type="button"
@@ -98,7 +161,12 @@ export function CercasClient() {
           lng: f.longitude,
           radiusMeters: f.radiusMeters,
           name: f.name,
+          type: f.type,
+          polygon: f.polygon ?? undefined,
         }))}
+        drawPolygonMode={drawMode}
+        draftPolygon={polygonPoints}
+        onPolygonPoint={(point) => setPolygonPoints((prev) => [...prev, point])}
       />
     </>
   );

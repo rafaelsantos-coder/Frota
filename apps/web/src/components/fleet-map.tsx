@@ -22,6 +22,8 @@ export type MapGeofence = {
   lng: number;
   radiusMeters: number;
   name: string;
+  type?: "CIRCLE" | "POLYGON";
+  polygon?: Array<[number, number]>;
 };
 
 export type MapEventMarker = {
@@ -45,6 +47,9 @@ type FleetMapProps = {
   zoom?: number;
   measureMode?: boolean;
   onMeasureChange?: (distanceKm: number | null) => void;
+  drawPolygonMode?: boolean;
+  draftPolygon?: Array<[number, number]>;
+  onPolygonPoint?: (point: [number, number]) => void;
   fitRoute?: boolean;
 };
 
@@ -79,6 +84,9 @@ export function FleetMap({
   zoom = 12,
   measureMode = false,
   onMeasureChange,
+  drawPolygonMode = false,
+  draftPolygon = [],
+  onPolygonPoint,
   fitRoute = true,
 }: FleetMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +150,10 @@ export function FleetMap({
     if (!map) return;
 
     const onClick = (e: L.LeafletMouseEvent) => {
+      if (drawPolygonMode) {
+        onPolygonPoint?.([e.latlng.lat, e.latlng.lng]);
+        return;
+      }
       if (!measureMode) return;
       const pts = [...measurePointsRef.current, e.latlng];
       measurePointsRef.current = pts;
@@ -172,7 +184,7 @@ export function FleetMap({
     return () => {
       map.off("click", onClick);
     };
-  }, [measureMode, onMeasureChange]);
+  }, [measureMode, drawPolygonMode, onMeasureChange, onPolygonPoint]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -185,15 +197,52 @@ export function FleetMap({
 
     if (showGeofences) {
       for (const fence of geofences) {
-        L.circle([fence.lat, fence.lng], {
-          radius: fence.radiusMeters,
-          color: "#3b82f6",
-          fillColor: "#3b82f6",
-          fillOpacity: 0.08,
-          weight: 2,
-        })
-          .bindTooltip(fence.name)
-          .addTo(layerGroups.geofences);
+        if (fence.type === "POLYGON" && fence.polygon && fence.polygon.length >= 3) {
+          L.polygon(
+            fence.polygon.map(([lat, lng]) => [lat, lng] as [number, number]),
+            {
+              color: "#3b82f6",
+              fillColor: "#3b82f6",
+              fillOpacity: 0.08,
+              weight: 2,
+            },
+          )
+            .bindTooltip(fence.name)
+            .addTo(layerGroups.geofences);
+        } else {
+          L.circle([fence.lat, fence.lng], {
+            radius: fence.radiusMeters,
+            color: "#3b82f6",
+            fillColor: "#3b82f6",
+            fillOpacity: 0.08,
+            weight: 2,
+          })
+            .bindTooltip(fence.name)
+            .addTo(layerGroups.geofences);
+        }
+      }
+    }
+
+    if (draftPolygon.length > 0) {
+      for (const [lat, lng] of draftPolygon) {
+        L.circleMarker([lat, lng], {
+          radius: 5,
+          color: "#2563eb",
+          fillColor: "#2563eb",
+          fillOpacity: 1,
+        }).addTo(layerGroups.geofences);
+      }
+      if (draftPolygon.length > 1) {
+        L.polyline(
+          draftPolygon.map(([lat, lng]) => [lat, lng] as [number, number]),
+          { color: "#2563eb", weight: 2, dashArray: "4 4" },
+        ).addTo(layerGroups.geofences);
+      }
+      if (draftPolygon.length >= 3) {
+        L.polygon(
+          draftPolygon.map(([lat, lng]) => [lat, lng] as [number, number]),
+          { color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.12, weight: 2 },
+        ).addTo(layerGroups.geofences);
       }
     }
 
@@ -267,6 +316,7 @@ export function FleetMap({
     trail,
     geofences,
     eventMarkers,
+    draftPolygon,
     selectedId,
     onSelect,
     showTrail,
@@ -278,6 +328,11 @@ export function FleetMap({
 
   return (
     <div className="fleet-map-wrap">
+      {drawPolygonMode && (
+        <div className="measure-banner">
+          Clique no mapa para adicionar vértices ({draftPolygon.length} pontos)
+        </div>
+      )}
       {measureMode && (
         <div className="measure-banner">
           Clique no mapa para medir distância

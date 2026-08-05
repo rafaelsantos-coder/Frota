@@ -823,3 +823,30 @@ textarea {
   font-size: 13px;
   line-height: 1.4;
 }
+
+.public-track-layout {
+  padding: 0;
+  max-width: none;
+}
+
+.public-track {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.public-track-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.public-track-header h1 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}

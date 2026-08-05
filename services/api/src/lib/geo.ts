@@ -23,6 +23,54 @@ export function isInsideGeofence(
   return distanceKm(lat, lon, fenceLat, fenceLon) * 1000 <= radiusMeters;
 }
 
+export type LatLngPoint = [number, number];
+
+/** Ray-casting point-in-polygon test. */
+export function isPointInPolygon(lat: number, lon: number, polygon: LatLngPoint[]): boolean {
+  if (polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [yi, xi] = polygon[i]!;
+    const [yj, xj] = polygon[j]!;
+    const intersects =
+      yi > lat !== yj > lat &&
+      lon < ((xj - xi) * (lat - yi)) / (yj - yi + Number.EPSILON) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+export function polygonCentroid(polygon: LatLngPoint[]): { lat: number; lon: number } {
+  let lat = 0;
+  let lon = 0;
+  for (const [pLat, pLon] of polygon) {
+    lat += pLat;
+    lon += pLon;
+  }
+  return { lat: lat / polygon.length, lon: lon / polygon.length };
+}
+
+export function geofenceContains(
+  lat: number,
+  lon: number,
+  fence: {
+    type: string;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    polygon?: unknown;
+  },
+): boolean {
+  if (fence.type === "POLYGON" && Array.isArray(fence.polygon)) {
+    const points = fence.polygon.filter(
+      (p): p is LatLngPoint =>
+        Array.isArray(p) && p.length === 2 && typeof p[0] === "number" && typeof p[1] === "number",
+    );
+    if (points.length >= 3) return isPointInPolygon(lat, lon, points);
+  }
+  return isInsideGeofence(lat, lon, fence.latitude, fence.longitude, fence.radiusMeters);
+}
+
 export function alertSeverity(type: string): string {
   return ALERT_SEVERITY[type] ?? "MEDIUM";
 }

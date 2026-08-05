@@ -17,6 +17,7 @@ const links = [
   { href: "/multas", label: "Multas" },
   { href: "/checklist", label: "Checklist" },
   { href: "/cercas", label: "Cercas" },
+  { href: "/notificacoes", label: "Notificações" },
   { href: "/vehicles", label: "Veículos" },
   { href: "/integrations", label: "Integrações" },
 ];

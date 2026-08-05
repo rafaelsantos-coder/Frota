@@ -106,9 +106,11 @@ export async function registerDashboardRoutes(app: FastifyInstance) {
 
   app.put("/notifications/preferences", auth, async (request) => {
     const body = request.body as {
-      email?: string;
+      email?: string | null;
+      telegramChatId?: string | null;
       onCritical?: boolean;
       onHigh?: boolean;
+      onTelegram?: boolean;
     };
     const orgId = request.authUser!.organizationId;
     const existing = await prisma.notificationPreference.findFirst({ where: { organizationId: orgId } });

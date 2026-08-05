@@ -38,6 +38,8 @@ export function MonitoramentoClient() {
   const [trail, setTrail] = useState<Array<{ lat: number; lng: number }>>([]);
   const [liveStatus, setLiveStatus] = useState<VehicleLiveStatusDto | null>(null);
   const [addresses, setAddresses] = useState<Record<string, string>>({});
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [commandMsg, setCommandMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +55,8 @@ export function MonitoramentoClient() {
           lng: f.longitude,
           radiusMeters: f.radiusMeters,
           name: f.name,
+          type: f.type,
+          polygon: f.polygon ?? undefined,
         })),
       );
       setError(null);
@@ -245,7 +249,61 @@ export function MonitoramentoClient() {
               <Link href={`/cameras?vehicleId=${selected.vehicle.id}`} className="btn">
                 Câmera
               </Link>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() =>
+                  void api.createShareLink(selected.vehicle.id).then((link) => {
+                    setShareUrl(link.url);
+                    void navigator.clipboard?.writeText(link.url);
+                  })
+                }
+              >
+                Compartilhar
+              </button>
+              {selected.vehicle.trackerImei && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() =>
+                      void api
+                        .sendVehicleCommand(selected.vehicle.id, "BLOCK")
+                        .then(() => setCommandMsg("Comando de bloqueio enviado"))
+                        .catch((err) =>
+                          setCommandMsg(err instanceof Error ? err.message : "Falha no comando"),
+                        )
+                    }
+                  >
+                    Bloquear
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() =>
+                      void api
+                        .sendVehicleCommand(selected.vehicle.id, "UNBLOCK")
+                        .then(() => setCommandMsg("Comando de desbloqueio enviado"))
+                        .catch((err) =>
+                          setCommandMsg(err instanceof Error ? err.message : "Falha no comando"),
+                        )
+                    }
+                  >
+                    Desbloquear
+                  </button>
+                </>
+              )}
             </div>
+            {shareUrl && (
+              <p className="muted" style={{ marginTop: 8, wordBreak: "break-all" }}>
+                Link copiado: {shareUrl}
+              </p>
+            )}
+            {commandMsg && (
+              <p className="muted" style={{ marginTop: 8 }}>
+                {commandMsg}
+              </p>
+            )}
           </div>
         )}
       </aside>

@@ -56,6 +56,23 @@ enum FineStatus {
   CONTESTED
 }
 
+enum GeofenceType {
+  CIRCLE
+  POLYGON
+}
+
+enum DeviceCommandType {
+  BLOCK
+  UNBLOCK
+}
+
+enum DeviceCommandStatus {
+  PENDING
+  SENT
+  FAILED
+  ACKNOWLEDGED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -156,6 +173,8 @@ model Vehicle {
   fines                  VehicleFine[]
   expenses               VehicleExpense[]
   liveStreamSessions     LiveStreamSession[]
+  shareLinks             ShareLink[]
+  deviceCommands         DeviceCommand[]
 
   @@unique([organizationId, plate])
   @@unique([organizationId, trackerImei])
@@ -198,14 +217,44 @@ model Geofence {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
+  type           GeofenceType @default(CIRCLE)
   latitude       Float
   longitude      Float
   radiusMeters   Int          @default(500)
+  polygon        Json?
   enabled        Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@index([organizationId])
+}
+
+model ShareLink {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+  @@index([token])
+}
+
+model DeviceCommand {
+  id        String              @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  imei      String
+  type      DeviceCommandType
+  status    DeviceCommandStatus @default(PENDING)
+  error     String?
+  createdBy String?
+  createdAt DateTime            @default(now())
+  sentAt    DateTime?
+
+  @@index([vehicleId, createdAt(sort: Desc)])
 }
 
 model Position {
@@ -408,8 +457,10 @@ model NotificationPreference {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   email          String?
+  telegramChatId String?
   onCritical     Boolean      @default(true)
   onHigh         Boolean      @default(true)
+  onTelegram     Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
