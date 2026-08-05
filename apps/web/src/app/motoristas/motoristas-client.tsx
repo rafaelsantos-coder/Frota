@@ -45,6 +45,16 @@ function dataUrlBase64(dataUrl: string) {
   return idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
 }
 
+function friendlyExtractError(message: string) {
+  if (message.includes("429") || message.toLowerCase().includes("quota")) {
+    return "Cota da IA esgotada. Preencha os campos manualmente ou gere nova chave em aistudio.google.com/apikey.";
+  }
+  if (message.includes("401") || message.includes("403") || message.includes("API key")) {
+    return "Chave de IA inválida no servidor. Use chave AIza… do Google AI Studio em GEMINI_API_KEY.";
+  }
+  return message;
+}
+
 export function MotoristasClient() {
   const [drivers, setDrivers] = useState<Awaited<ReturnType<typeof api.getDrivers>>>([]);
   const [vehicles, setVehicles] = useState<Awaited<ReturnType<typeof api.getVehicles>>>([]);
@@ -127,7 +137,19 @@ export function MotoristasClient() {
         );
       }
     } catch (err) {
-      setExtractMsg(err instanceof Error ? err.message : "Erro na extração");
+      const raw = err instanceof Error ? err.message : "Erro na extração";
+      let photoData = "";
+      try {
+        photoData = await extractPhotoFromCnhDocument(file);
+      } catch {
+        /* ignore */
+      }
+      if (photoData) {
+        setForm((prev) => ({ ...prev, photoData }));
+      }
+      setExtractMsg(
+        `${friendlyExtractError(raw)}${photoData ? " Foto estimada da CNH aplicada." : ""}`,
+      );
     } finally {
       setExtracting(false);
     }
