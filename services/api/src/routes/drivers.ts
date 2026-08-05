@@ -3,19 +3,59 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { assignDriverToVehicle, getCurrentVehicleForDriver } from "../lib/drivers.js";
 import { toDriverDto } from "../lib/mappers.js";
+import { extractCnhFromImage, parseDateOnly } from "../lib/cnh-extract.js";
 
 const createSchema = z.object({
   name: z.string().min(1),
   cpf: z.string().optional(),
+  rg: z.string().optional(),
   cnh: z.string().optional(),
+  birthDate: z.string().optional(),
+  cnhExpiry: z.string().optional(),
+  photoData: z.string().optional(),
   rfidTag: z.string().optional(),
   ibuttonId: z.string().optional(),
 });
 
 const updateSchema = createSchema.partial().extend({ active: z.boolean().optional() });
 
+const extractSchema = z.object({
+  imageBase64: z.string().min(100),
+  mimeType: z.string().default("image/jpeg"),
+});
+
+function driverDataFromInput(data: z.infer<typeof createSchema>) {
+  return {
+    name: data.name,
+    cpf: data.cpf ?? null,
+    rg: data.rg ?? null,
+    cnh: data.cnh ?? null,
+    birthDate: parseDateOnly(data.birthDate),
+    cnhExpiry: parseDateOnly(data.cnhExpiry),
+    photoData: data.photoData ?? null,
+    rfidTag: data.rfidTag ?? null,
+    ibuttonId: data.ibuttonId ?? null,
+  };
+}
+
 export async function registerDriverRoutes(app: FastifyInstance) {
   const auth = { preHandler: [app.authenticate] };
+
+  app.post("/drivers/extract-cnh", auth, async (request, reply) => {
+    const parsed = extractSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Envie a imagem da CNH digital (JPEG/PNG)" });
+    }
+
+    try {
+      const result = await extractCnhFromImage(parsed.data.imageBase64, parsed.data.mimeType);
+      return result;
+    } catch (error) {
+      return reply.status(502).send({
+        error: error instanceof Error ? error.message : "Erro ao extrair dados da CNH",
+      });
+    }
+  });
 
   app.get("/drivers", auth, async (request) => {
     const orgId = request.authUser!.organizationId;
@@ -98,7 +138,10 @@ export async function registerDriverRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
 
     const driver = await prisma.driver.create({
-      data: { organizationId: request.authUser!.organizationId, ...parsed.data },
+      data: {
+        organizationId: request.authUser!.organizationId,
+        ...driverDataFromInput(parsed.data),
+      },
     });
     return reply.status(201).send(toDriverDto(driver, null));
   });
@@ -112,7 +155,15 @@ export async function registerDriverRoutes(app: FastifyInstance) {
     });
     if (!existing) return reply.status(404).send({ error: "Motorista não encontrado" });
 
-    const driver = await prisma.driver.update({ where: { id: existing.id }, data: parsed.data });
+    const { birthDate, cnhExpiry, ...rest } = parsed.data;
+    const driver = await prisma.driver.update({
+      where: { id: existing.id },
+      data: {
+        ...rest,
+        birthDate: birthDate !== undefined ? parseDateOnly(birthDate) : undefined,
+        cnhExpiry: cnhExpiry !== undefined ? parseDateOnly(cnhExpiry) : undefined,
+      },
+    });
     return toDriverDto(driver, await getCurrentVehicleForDriver(driver.id));
   });
 

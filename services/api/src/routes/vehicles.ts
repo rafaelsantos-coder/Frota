@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { toVehicleDto } from "../lib/mappers.js";
+import { auditFromRequest, AUDIT_ACTIONS } from "../lib/audit.js";
 
 const createVehicleSchema = z.object({
   plate: z.string().min(1),
@@ -67,6 +68,10 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
       },
     });
 
+    await auditFromRequest(request, AUDIT_ACTIONS.VEHICLE_CREATE, "vehicle", vehicle.id, {
+      plate: vehicle.plate,
+    });
+
     return reply.status(201).send(toVehicleDto(vehicle));
   });
 
@@ -95,6 +100,8 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
       },
     });
 
+    await auditFromRequest(request, AUDIT_ACTIONS.VEHICLE_UPDATE, "vehicle", vehicle.id);
+
     return toVehicleDto(vehicle);
   });
 
@@ -109,6 +116,9 @@ export async function registerVehicleRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "Veículo não encontrado" });
     }
     await prisma.vehicle.delete({ where: { id: request.params.id } });
+    await auditFromRequest(request, AUDIT_ACTIONS.VEHICLE_DELETE, "vehicle", existing.id, {
+      plate: existing.plate,
+    });
     return reply.status(204).send();
   });
 }

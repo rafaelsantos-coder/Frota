@@ -55,7 +55,11 @@ export function toDriverDto(
     id: string;
     name: string;
     cpf: string | null;
+    rg: string | null;
     cnh: string | null;
+    birthDate: Date | null;
+    cnhExpiry: Date | null;
+    photoData: string | null;
     rfidTag: string | null;
     ibuttonId: string | null;
     active: boolean;
@@ -68,7 +72,11 @@ export function toDriverDto(
     id: driver.id,
     name: driver.name,
     cpf: driver.cpf,
+    rg: driver.rg,
     cnh: driver.cnh,
+    birthDate: driver.birthDate ? driver.birthDate.toISOString().slice(0, 10) : null,
+    cnhExpiry: driver.cnhExpiry ? driver.cnhExpiry.toISOString().slice(0, 10) : null,
+    photoUrl: driver.photoData,
     rfidTag: driver.rfidTag,
     ibuttonId: driver.ibuttonId,
     active: driver.active,

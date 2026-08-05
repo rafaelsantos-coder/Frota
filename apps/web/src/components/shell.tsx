@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { BackToMenu } from "@/components/back-to-menu";
 
 const links = [
   { href: "/monitoramento", label: "Monitoramento" },
@@ -22,12 +23,19 @@ const links = [
   { href: "/integrations", label: "Integrações" },
 ];
 
+const adminLinks = [{ href: "/admin", label: "Administração" }];
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   if (pathname.startsWith("/motorista")) {
-    return <main className="main driver-app">{children}</main>;
+    return (
+      <main className="main driver-app">
+        <BackToMenu />
+        {children}
+      </main>
+    );
   }
 
   return (
@@ -47,6 +55,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          {user?.role === "ADMIN" &&
+            adminLinks.map((link) => {
+              const active = pathname.startsWith("/admin");
+              return (
+                <Link key={link.href} href={link.href} className={active ? "active" : undefined}>
+                  {link.label}
+                </Link>
+              );
+            })}
         </nav>
         <div className="sidebar-user">
           <strong>{user?.name}</strong>
@@ -59,7 +76,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        <BackToMenu />
+        {children}
+      </main>
     </div>
   );
 }

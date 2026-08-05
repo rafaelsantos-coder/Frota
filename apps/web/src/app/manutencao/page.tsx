@@ -1,10 +1,13 @@
 import { RequireAuth } from "@/components/require-auth";
+import { Shell } from "@/components/shell";
 import { ManutencaoClient } from "./manutencao-client";
 
 export default function ManutencaoPage() {
   return (
     <RequireAuth>
-      <ManutencaoClient />
+      <Shell>
+        <ManutencaoClient />
+      </Shell>
     </RequireAuth>
   );
 }

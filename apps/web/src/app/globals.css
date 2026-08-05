@@ -850,3 +850,91 @@ textarea {
   gap: 8px;
   font-size: 14px;
 }
+
+.back-to-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.back-to-menu:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.admin-nav a {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.admin-nav a.active,
+.admin-nav a:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.permission-grid {
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.file-input {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.driver-photo-row {
+  margin-bottom: 8px;
+}
+
+.driver-photo-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.driver-photo-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+}
+
+.driver-photo-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}

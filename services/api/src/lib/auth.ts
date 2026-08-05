@@ -23,14 +23,20 @@ export function toUserDto(user: {
   email: string;
   name: string;
   role: "ADMIN" | "OPERATOR";
+  active?: boolean;
+  profileId?: string | null;
   organizationId: string;
   organization: { name: string };
+  profile?: { name: string } | null;
 }) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    active: user.active,
+    profileId: user.profileId ?? null,
+    profileName: user.profile?.name ?? null,
     organizationId: user.organizationId,
     organizationName: user.organization.name,
   };

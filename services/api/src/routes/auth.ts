@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { toUserDto, verifyPassword } from "../lib/auth.js";
+import { logLoginSuccess } from "../lib/audit.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,7 +18,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const user = await prisma.user.findUnique({
       where: { email: parsed.data.email.toLowerCase() },
-      include: { organization: true },
+      include: { organization: true, profile: true },
     });
 
     if (!user || !user.active) {
@@ -37,6 +38,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       organizationId: user.organizationId,
     });
 
+    void logLoginSuccess(request, user);
+
     return {
       token,
       user: toUserDto(user),
@@ -49,7 +52,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     async (request) => {
       const user = await prisma.user.findUniqueOrThrow({
         where: { id: request.authUser!.sub },
-        include: { organization: true },
+        include: { organization: true, profile: true },
       });
       return toUserDto(user);
     },

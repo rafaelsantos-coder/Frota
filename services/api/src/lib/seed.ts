@@ -1,7 +1,61 @@
 import { prisma } from "./prisma.js";
 import { hashPassword } from "./auth.js";
 import { ensureNotificationDefaults } from "./notifications.js";
-import { DEFAULT_CHECKLIST_ITEMS } from "@frota/shared";
+import { DEFAULT_CHECKLIST_ITEMS, PERMISSIONS, type Permission } from "@frota/shared";
+
+const ALL_PERMISSIONS = [...PERMISSIONS] as Permission[];
+
+const DEFAULT_PROFILES: Array<{
+  name: string;
+  description: string;
+  permissions: Permission[];
+}> = [
+  {
+    name: "Administrador",
+    description: "Acesso total ao sistema",
+    permissions: ALL_PERMISSIONS,
+  },
+  {
+    name: "Operador",
+    description: "Monitoramento e operações do dia a dia",
+    permissions: [
+      "monitoring.view",
+      "vehicles.view",
+      "drivers.view",
+      "drivers.manage",
+      "operations.view",
+      "operations.manage",
+      "reports.view",
+    ],
+  },
+  {
+    name: "Visualizador",
+    description: "Somente leitura",
+    permissions: ["monitoring.view", "vehicles.view", "drivers.view", "operations.view", "reports.view"],
+  },
+];
+
+async function ensureAccessProfiles(organizationId: string) {
+  for (const def of DEFAULT_PROFILES) {
+    const existing = await prisma.accessProfile.findFirst({
+      where: { organizationId, name: def.name },
+    });
+    if (!existing) {
+      await prisma.accessProfile.create({
+        data: {
+          organizationId,
+          name: def.name,
+          description: def.description,
+          permissions: def.permissions,
+          isSystem: true,
+        },
+      });
+    }
+  }
+  return prisma.accessProfile.findFirst({
+    where: { organizationId, name: "Administrador" },
+  });
+}
 
 export async function getDefaultOrganization() {
   let org = await prisma.organization.findFirst({ where: { slug: "principal" } });
@@ -15,6 +69,10 @@ export async function getDefaultOrganization() {
 
 export async function ensureSeedData() {
   const org = await getDefaultOrganization();
+  await ensureAccessProfiles(org.id);
+  const adminProfile = await prisma.accessProfile.findFirst({
+    where: { organizationId: org.id, name: "Administrador" },
+  });
 
   const userCount = await prisma.user.count();
   if (userCount === 0) {
@@ -27,6 +85,7 @@ export async function ensureSeedData() {
         email: email.toLowerCase(),
         name,
         role: "ADMIN",
+        profileId: adminProfile?.id ?? null,
         passwordHash: await hashPassword(password),
         organizationId: org.id,
       },

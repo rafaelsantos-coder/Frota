@@ -1,14 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+
+type DriverForm = {
+  name: string;
+  cpf: string;
+  rg: string;
+  cnh: string;
+  birthDate: string;
+  cnhExpiry: string;
+  photoData: string;
+  rfidTag: string;
+};
+
+const emptyForm: DriverForm = {
+  name: "",
+  cpf: "",
+  rg: "",
+  cnh: "",
+  birthDate: "",
+  cnhExpiry: "",
+  photoData: "",
+  rfidTag: "",
+};
+
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlMime(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);/);
+  return match?.[1] ?? "image/jpeg";
+}
+
+function dataUrlBase64(dataUrl: string) {
+  const idx = dataUrl.indexOf(",");
+  return idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+}
 
 export function MotoristasClient() {
   const [drivers, setDrivers] = useState<Awaited<ReturnType<typeof api.getDrivers>>>([]);
   const [vehicles, setVehicles] = useState<Awaited<ReturnType<typeof api.getVehicles>>>([]);
   const [ranking, setRanking] = useState<Awaited<ReturnType<typeof api.getDriverRanking>>>([]);
-  const [form, setForm] = useState({ name: "", cpf: "", cnh: "", rfidTag: "" });
+  const [form, setForm] = useState<DriverForm>(emptyForm);
   const [assignMap, setAssignMap] = useState<Record<string, string>>({});
+  const [extracting, setExtracting] = useState(false);
+  const [extractMsg, setExtractMsg] = useState<string | null>(null);
+  const cnhInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     const [d, v, r] = await Promise.all([
@@ -25,15 +70,57 @@ export function MotoristasClient() {
     void load();
   }, []);
 
+  async function handleCnhUpload(file: File) {
+    setExtractMsg(null);
+    if (!file.type.startsWith("image/")) {
+      setExtractMsg("Envie uma imagem (JPEG/PNG) da CNH digital ou foto da carteira.");
+      return;
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    setExtracting(true);
+    try {
+      const extracted = await api.extractCnhFromDocument(dataUrlBase64(dataUrl), dataUrlMime(dataUrl));
+      if (extracted.message && !extracted.name) {
+        setExtractMsg(extracted.message);
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          name: extracted.name ?? prev.name,
+          cpf: extracted.cpf ?? prev.cpf,
+          rg: extracted.rg ?? prev.rg,
+          cnh: extracted.cnh ?? prev.cnh,
+          birthDate: extracted.birthDate ?? prev.birthDate,
+          cnhExpiry: extracted.cnhExpiry ?? prev.cnhExpiry,
+        }));
+        setExtractMsg("Dados extraídos da CNH. Revise antes de cadastrar.");
+      }
+    } catch (err) {
+      setExtractMsg(err instanceof Error ? err.message : "Erro na extração");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handlePhotoUpload(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const dataUrl = await readFileAsDataUrl(file);
+    setForm((prev) => ({ ...prev, photoData: dataUrl }));
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     await api.createDriver({
       name: form.name,
       cpf: form.cpf || undefined,
+      rg: form.rg || undefined,
       cnh: form.cnh || undefined,
+      birthDate: form.birthDate || undefined,
+      cnhExpiry: form.cnhExpiry || undefined,
+      photoData: form.photoData || undefined,
       rfidTag: form.rfidTag || undefined,
     });
-    setForm({ name: "", cpf: "", cnh: "", rfidTag: "" });
+    setForm(emptyForm);
+    setExtractMsg(null);
     await load();
   }
 
@@ -41,7 +128,7 @@ export function MotoristasClient() {
     <>
       <div className="page-header">
         <h2>Motoristas</h2>
-        <p>Cadastro, RFID/iButton e ranking de condução</p>
+        <p>Cadastro com CNH digital (IA), foto 4x4, RFID/iButton e ranking</p>
       </div>
 
       <div className="two-col">
@@ -49,22 +136,93 @@ export function MotoristasClient() {
           <h3>Novo motorista</h3>
           <form onSubmit={(e) => void handleCreate(e)} className="form-stack">
             <div className="form-row">
+              <label>CNH digital / foto da carteira</label>
+              <input
+                ref={cnhInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="file-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleCnhUpload(file);
+                }}
+              />
+              <small className="muted">
+                Anexe a CNH digital (captura de tela ou PDF exportado como imagem). A IA preenche os
+                campos automaticamente.
+              </small>
+              {extracting && <p className="muted">Extraindo dados com IA…</p>}
+              {extractMsg && <p className="muted">{extractMsg}</p>}
+            </div>
+
+            <div className="form-row driver-photo-row">
+              <label>Foto do motorista (4x4)</label>
+              <div className="driver-photo-box">
+                {form.photoData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.photoData} alt="Foto motorista" className="driver-photo-preview" />
+                ) : (
+                  <span className="muted">Sem foto</span>
+                )}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="file-input"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handlePhotoUpload(file);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
               <label>Nome</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
             </div>
             <div className="form-row">
               <label>CPF</label>
               <input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
             </div>
             <div className="form-row">
-              <label>CNH</label>
+              <label>RG</label>
+              <input value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <label>CNH (nº registro)</label>
               <input value={form.cnh} onChange={(e) => setForm({ ...form, cnh: e.target.value })} />
             </div>
             <div className="form-row">
-              <label>RFID / iButton</label>
-              <input value={form.rfidTag} onChange={(e) => setForm({ ...form, rfidTag: e.target.value })} />
+              <label>Data de nascimento</label>
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+              />
             </div>
-            <button type="submit" className="btn">Cadastrar</button>
+            <div className="form-row">
+              <label>Validade da CNH</label>
+              <input
+                type="date"
+                value={form.cnhExpiry}
+                onChange={(e) => setForm({ ...form, cnhExpiry: e.target.value })}
+              />
+            </div>
+            <div className="form-row">
+              <label>RFID / iButton</label>
+              <input
+                value={form.rfidTag}
+                onChange={(e) => setForm({ ...form, rfidTag: e.target.value })}
+              />
+            </div>
+            <button type="submit" className="btn" disabled={extracting}>
+              Cadastrar
+            </button>
           </form>
         </section>
 
@@ -84,7 +242,9 @@ export function MotoristasClient() {
                 <tr key={r.driverId}>
                   <td>{r.name}</td>
                   <td>
-                    <span className={`score score-${r.score >= 80 ? "good" : r.score >= 50 ? "mid" : "bad"}`}>
+                    <span
+                      className={`score score-${r.score >= 80 ? "good" : r.score >= 50 ? "mid" : "bad"}`}
+                    >
                       {r.score}
                     </span>
                   </td>
@@ -102,10 +262,13 @@ export function MotoristasClient() {
         <table className="table">
           <thead>
             <tr>
+              <th>Foto</th>
               <th>Nome</th>
               <th>CPF</th>
+              <th>CNH</th>
+              <th>Validade</th>
               <th>RFID</th>
-              <th>Veículo atual</th>
+              <th>Veículo</th>
               <th>Vincular</th>
               <th></th>
             </tr>
@@ -113,10 +276,20 @@ export function MotoristasClient() {
           <tbody>
             {drivers.map((d) => (
               <tr key={d.id}>
+                <td>
+                  {d.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={d.photoUrl} alt="" className="driver-photo-thumb" />
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>{d.name}</td>
                 <td>{d.cpf ?? "—"}</td>
+                <td>{d.cnh ?? "—"}</td>
+                <td>{d.cnhExpiry ?? "—"}</td>
                 <td>{d.rfidTag ?? "—"}</td>
-                <td>{d.currentVehicle ? `${d.currentVehicle.plate}` : "—"}</td>
+                <td>{d.currentVehicle ? d.currentVehicle.plate : "—"}</td>
                 <td>
                   <select
                     value={assignMap[d.id] ?? ""}
@@ -124,22 +297,26 @@ export function MotoristasClient() {
                   >
                     <option value="">Selecione…</option>
                     {vehicles.map((v) => (
-                      <option key={v.id} value={v.id}>{v.plate}</option>
+                      <option key={v.id} value={v.id}>
+                        {v.plate}
+                      </option>
                     ))}
                   </select>
                   <button
                     type="button"
                     className="btn btn-sm"
                     disabled={!assignMap[d.id]}
-                    onClick={() =>
-                      void api.assignDriver(d.id, assignMap[d.id]!).then(load)
-                    }
+                    onClick={() => void api.assignDriver(d.id, assignMap[d.id]!).then(load)}
                   >
                     Vincular
                   </button>
                 </td>
                 <td>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => void api.deleteDriver(d.id).then(load)}>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => void api.deleteDriver(d.id).then(load)}
+                  >
                     Excluir
                   </button>
                 </td>

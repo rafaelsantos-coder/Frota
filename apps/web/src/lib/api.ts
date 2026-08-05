@@ -120,6 +120,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  extractCnhFromDocument: (imageBase64: string, mimeType: string) =>
+    request<import("@frota/shared").CnhExtractResult>("/drivers/extract-cnh", {
+      method: "POST",
+      body: JSON.stringify({ imageBase64, mimeType }),
+    }),
   deleteDriver: (id: string) => request<void>(`/drivers/${id}`, { method: "DELETE" }),
   assignDriver: (driverId: string, vehicleId: string) =>
     request<import("@frota/shared").DriverDto>(`/drivers/${driverId}/assign`, {
@@ -329,4 +334,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ type }),
     }),
+
+  getAdminUsers: () => request<import("@frota/shared").UserDto[]>("/admin/users"),
+  createAdminUser: (body: import("@frota/shared").CreateUserInput) =>
+    request<import("@frota/shared").UserDto>("/admin/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateAdminUser: (id: string, body: import("@frota/shared").UpdateUserInput) =>
+    request<import("@frota/shared").UserDto>(`/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  getAccessProfiles: () =>
+    request<import("@frota/shared").AccessProfileDto[]>("/admin/profiles"),
+  createAccessProfile: (body: import("@frota/shared").CreateAccessProfileInput) =>
+    request<import("@frota/shared").AccessProfileDto>("/admin/profiles", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateAccessProfile: (id: string, body: import("@frota/shared").UpdateAccessProfileInput) =>
+    request<import("@frota/shared").AccessProfileDto>(`/admin/profiles/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteAccessProfile: (id: string) =>
+    request<void>(`/admin/profiles/${id}`, { method: "DELETE" }),
+
+  getAuditLogs: (action?: string) =>
+    request<import("@frota/shared").AuditLogDto[]>(
+      `/admin/audit-logs${action ? `?action=${encodeURIComponent(action)}` : ""}`,
+    ),
 };

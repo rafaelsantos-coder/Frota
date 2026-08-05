@@ -21,6 +21,7 @@ import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerExportRoutes } from "./routes/export.js";
 import { registerShareRoutes } from "./routes/share.js";
 import { registerCommandRoutes } from "./routes/commands.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 
 const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3001);
 const host = process.env.API_HOST ?? "0.0.0.0";
@@ -71,6 +72,7 @@ await registerDashboardRoutes(app);
 await registerExportRoutes(app);
 await registerShareRoutes(app);
 await registerCommandRoutes(app);
+await registerAdminRoutes(app);
 
 await ensureSeedData();
 

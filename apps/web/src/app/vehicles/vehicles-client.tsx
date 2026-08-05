@@ -15,7 +15,7 @@ function StatusBadge({ status }: { status: VehicleDto["trackerStatus"] }) {
   return <span className={className}>{status}</span>;
 }
 
-export function VehiclesClient() {
+export function VehiclesClient({ hideHeader = false }: { hideHeader?: boolean }) {
   const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +73,12 @@ export function VehiclesClient() {
 
   return (
     <>
-      <div className="page-header">
-        <h2>Veículos</h2>
-        <p>Cada veículo possui um rastreador GT06 e uma câmera Jimi JC371 vinculados.</p>
-      </div>
+      {!hideHeader && (
+        <div className="page-header">
+          <h2>Veículos</h2>
+          <p>Cada veículo possui um rastreador GT06 e uma câmera Jimi JC371 vinculados.</p>
+        </div>
+      )}
 
       <section className="panel">
         <h3>Adicionar veículo</h3>

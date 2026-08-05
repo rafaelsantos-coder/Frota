@@ -1,12 +1,102 @@
 export type UserRole = "ADMIN" | "OPERATOR";
 
+export const PERMISSIONS = [
+  "monitoring.view",
+  "vehicles.view",
+  "vehicles.manage",
+  "drivers.view",
+  "drivers.manage",
+  "operations.view",
+  "operations.manage",
+  "reports.view",
+  "integrations.manage",
+  "admin.users",
+  "admin.profiles",
+  "admin.logs",
+  "admin.vehicles",
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number];
+
+export const PERMISSION_LABELS: Record<Permission, string> = {
+  "monitoring.view": "Monitoramento e histórico",
+  "vehicles.view": "Visualizar veículos",
+  "vehicles.manage": "Gerenciar veículos",
+  "drivers.view": "Visualizar motoristas",
+  "drivers.manage": "Gerenciar motoristas",
+  "operations.view": "Operações (combustível, multas…)",
+  "operations.manage": "Editar operações",
+  "reports.view": "Relatórios",
+  "integrations.manage": "Integrações GT06/Jimi",
+  "admin.users": "Usuários",
+  "admin.profiles": "Perfis de acesso",
+  "admin.logs": "Log do sistema",
+  "admin.vehicles": "Configuração de veículos",
+};
+
 export interface UserDto {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  active?: boolean;
+  profileId: string | null;
+  profileName: string | null;
   organizationId: string;
   organizationName: string;
+}
+
+export interface AccessProfileDto {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: Permission[];
+  isSystem: boolean;
+  userCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditLogDto {
+  id: string;
+  userEmail: string | null;
+  userName: string | null;
+  action: string;
+  entity: string | null;
+  entityId: string | null;
+  details: Record<string, unknown>;
+  ip: string | null;
+  createdAt: string;
+}
+
+export interface CreateUserInput {
+  email: string;
+  name: string;
+  password: string;
+  role?: UserRole;
+  profileId?: string | null;
+  active?: boolean;
+}
+
+export interface UpdateUserInput {
+  email?: string;
+  name?: string;
+  password?: string;
+  role?: UserRole;
+  profileId?: string | null;
+  active?: boolean;
+}
+
+export interface CreateAccessProfileInput {
+  name: string;
+  description?: string;
+  permissions: Permission[];
+}
+
+export interface UpdateAccessProfileInput {
+  name?: string;
+  description?: string | null;
+  permissions?: Permission[];
 }
 
 export interface AuthResponse {
@@ -63,13 +153,27 @@ export interface DriverDto {
   id: string;
   name: string;
   cpf: string | null;
+  rg: string | null;
   cnh: string | null;
+  birthDate: string | null;
+  cnhExpiry: string | null;
+  photoUrl: string | null;
   rfidTag: string | null;
   ibuttonId: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
   currentVehicle?: { id: string; plate: string; label: string } | null;
+}
+
+export interface CnhExtractResult {
+  name?: string;
+  cpf?: string;
+  rg?: string;
+  cnh?: string;
+  birthDate?: string;
+  cnhExpiry?: string;
+  message?: string;
 }
 
 export interface DriverReportDto {
@@ -459,7 +563,11 @@ export interface UpdateVehicleInput {
 export interface CreateDriverInput {
   name: string;
   cpf?: string;
+  rg?: string;
   cnh?: string;
+  birthDate?: string;
+  cnhExpiry?: string;
+  photoData?: string;
   rfidTag?: string;
   ibuttonId?: string;
 }
@@ -467,7 +575,11 @@ export interface CreateDriverInput {
 export interface UpdateDriverInput {
   name?: string;
   cpf?: string | null;
+  rg?: string | null;
   cnh?: string | null;
+  birthDate?: string | null;
+  cnhExpiry?: string | null;
+  photoData?: string | null;
   rfidTag?: string | null;
   ibuttonId?: string | null;
   active?: boolean;

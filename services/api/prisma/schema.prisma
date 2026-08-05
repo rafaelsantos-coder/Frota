@@ -88,6 +88,8 @@ model Organization {
   drivers              Driver[]
   checklistTemplates   ChecklistTemplate[]
   notificationPrefs    NotificationPreference[]
+  accessProfiles       AccessProfile[]
+  auditLogs            AuditLog[]
 }
 
 model User {
@@ -99,12 +101,53 @@ model User {
   active         Boolean  @default(true)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profileId      String?
+  profile        AccessProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   dashboardLayout DashboardLayout?
+  auditLogs       AuditLog[]
 
   @@index([organizationId])
+  @@index([profileId])
+}
+
+model AccessProfile {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  permissions    Json
+  isSystem       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  users User[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail      String?
+  userName       String?
+  action         String
+  entity         String?
+  entityId       String?
+  details        Json     @default("{}")
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([action])
 }
 
 model Driver {
@@ -113,7 +156,11 @@ model Driver {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   cpf            String?
+  rg             String?
   cnh            String?
+  birthDate      DateTime?    @db.Date
+  cnhExpiry      DateTime?    @db.Date
+  photoData      String?      @db.Text
   rfidTag        String?
   ibuttonId      String?
   active         Boolean      @default(true)
