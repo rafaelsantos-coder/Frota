@@ -79,14 +79,18 @@ export function MotoristasClient() {
 
   async function handleCnhUpload(file: File) {
     setExtractMsg(null);
-    if (!file.type.startsWith("image/")) {
-      setExtractMsg("Envie uma imagem (JPEG/PNG) da CNH digital ou foto da carteira.");
+    const isPdf =
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isImage = file.type.startsWith("image/");
+    if (!isPdf && !isImage) {
+      setExtractMsg("Envie JPEG, PNG, WebP ou PDF da CNH digital.");
       return;
     }
     const dataUrl = await readFileAsDataUrl(file);
+    const mimeType = isPdf ? "application/pdf" : dataUrlMime(dataUrl);
     setExtracting(true);
     try {
-      const extracted = await api.extractCnhFromDocument(dataUrlBase64(dataUrl), dataUrlMime(dataUrl));
+      const extracted = await api.extractCnhFromDocument(dataUrlBase64(dataUrl), mimeType);
       if (extracted.message && !extracted.name) {
         setExtractMsg(extracted.message);
       } else {
@@ -175,7 +179,7 @@ export function MotoristasClient() {
                 <input
                   ref={cnhInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
                   className="file-input"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -183,7 +187,7 @@ export function MotoristasClient() {
                   }}
                 />
                 <small className="muted">
-                  Anexe a CNH digital (captura ou imagem). A IA preenche os campos automaticamente.
+                  Anexe a CNH digital em PDF, JPEG ou PNG. A IA preenche os campos automaticamente.
                 </small>
                 {extracting && <p className="muted">Extraindo dados com IA…</p>}
                 {extractMsg && <p className="muted">{extractMsg}</p>}

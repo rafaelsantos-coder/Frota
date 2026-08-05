@@ -44,7 +44,7 @@ export async function registerDriverRoutes(app: FastifyInstance) {
   app.post("/drivers/extract-cnh", auth, async (request, reply) => {
     const parsed = extractSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: "Envie a imagem da CNH digital (JPEG/PNG)" });
+      return reply.status(400).send({ error: "Envie a CNH digital (JPEG, PNG ou PDF)" });
     }
 
     try {

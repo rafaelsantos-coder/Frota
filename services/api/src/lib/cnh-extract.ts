@@ -129,6 +129,13 @@ export async function extractCnhFromImage(
 
   const { dataUrl, base64, mime } = normalizeBase64(imageBase64, mimeType);
 
+  if (mime === "application/pdf" && provider === "openai") {
+    return {
+      message:
+        "PDF da CNH digital requer Gemini (GEMINI_API_KEY). Ou envie captura em JPEG/PNG.",
+    };
+  }
+
   if (provider === "gemini") {
     return extractWithGemini(base64, mime);
   }
