@@ -119,17 +119,19 @@ export async function publicAccess(req, res, path, url, pool, send) {
       state,nonce,
       prompt:'select_account'
     });
-    redirect(res,'https://accounts.google.com/o/oauth2/v2/auth?' + authorization);
+    redirect(res,'https://accounts.google.com/o/oauth2/v2/auth?' + authorization,{'Set-Cookie':'google_oauth_state='+state+'; HttpOnly; Secure; SameSite=Lax; Path=/api/auth/google/callback; Max-Age=600'});
     return true;
   }
   if (path === '/api/auth/google/callback' && req.method === 'GET') {
     const state = url.searchParams.get('state');
     const code = url.searchParams.get('code');
-    if (!state || !code || state.length > 256 || code.length > 4096 || !googleReady()) {
+    const cookieState = /(?:^|; )google_oauth_state=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
+    if (!state || !code || !cookieState || state !== cookieState || state.length > 256 || code.length > 4096 || !googleReady()) {
       redirect(res,'/login.html?status=google_error');
       return true;
     }
     try {
+      res.setHeader('Set-Cookie','google_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/api/auth/google/callback; Max-Age=0');
       const claimed = await pool.query('DELETE FROM google_auth_states WHERE state=$1 AND expires>NOW() RETURNING nonce',[sha(state)]);
       if (!claimed.rowCount) throw Error('Estado de autenticação inválido ou expirado');
       const exchange = await fetch('https://oauth2.googleapis.com/token',{
@@ -174,7 +176,7 @@ export async function publicAccess(req, res, path, url, pool, send) {
       const session = randomBytes(32).toString('hex');
       await pool.query("INSERT INTO sessions(token,user_id,expires) VALUES($1,$2,NOW()+INTERVAL '7 days')",[sha(session),user.id]);
       await pool.query('INSERT INTO access_audit(user_id,action) VALUES($1,$2)',[user.id,'login_google_success']);
-      redirect(res,'/',{'Set-Cookie':cookie(session)});
+      redirect(res,'/',{'Set-Cookie':[cookie(session),'google_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/api/auth/google/callback; Max-Age=0']});
       return true;
     } catch (err) {
       console.error('Erro de autenticação Google:',err.message);
