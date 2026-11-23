@@ -3,3 +3,25 @@
 
 /* Interface refinements: accessible, responsive health workspace */
 :root{color-scheme:light;--focus:#26775a}button,input,textarea{font:inherit}button{transition:background-color .18s ease,border-color .18s ease,transform .18s ease}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--focus);outline-offset:3px}button:hover:not(:disabled){filter:brightness(.98)}button:disabled{opacity:.55;cursor:not-allowed}button[hidden],[hidden]{display:none!important}textarea{width:100%;min-height:92px;resize:vertical;padding:12px;border:1px solid #c9d8ce;border-radius:9px}.record-form label:has(textarea){grid-column:1/-1}.receipt-row input{min-width:0}.receipt-row button{min-height:42px;border:1px solid #d6e4d9;border-radius:9px;background:#fff}.meal{box-shadow:0 8px 28px #18362f07}.nav.active{box-shadow:inset 3px 0 #c7e6af}main{min-width:0}input,textarea{max-width:100%}@media(max-width:750px){.record-form{grid-template-columns:1fr}.receipt-row{grid-template-columns:1fr 1fr!important}.receipt-row label:first-child{grid-column:1/-1}.receipt-row button{align-self:end}.sidebar nav{scrollbar-width:thin}.date-pill{white-space:normal}.section-title h3{font-size:19px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Identity and approval flows */
+.login-shell{max-width:480px!important;padding:26px 18px!important;margin:clamp(35px,8vh,90px) auto!important}
+.login-brand{font-size:clamp(24px,5vw,31px);font-weight:850;letter-spacing:-1.2px;color:#173e2e;text-align:center;margin-bottom:22px}
+.login-card{border-radius:24px;padding:clamp(20px,5vw,34px);box-shadow:0 22px 65px rgba(16,43,37,.08)}
+.login-card h1{font-size:30px;margin:12px 0}
+.login-form{display:grid;gap:14px}
+.login-form label{display:grid;gap:7px;font-size:13px;font-weight:650;color:#3b6350}
+.login-form input{width:100%;min-height:46px;border:1px solid #cadbd0;border-radius:11px;padding:12px;background:white}
+.google-login{display:flex;align-items:center;justify-content:center;gap:12px;padding:15px;margin:24px 0 10px;border:1px solid #c9d7cf;color:#214532;background:#fff;text-decoration:none;border-radius:13px;font-weight:750;min-height:52px}
+.google-login:hover{background:#f1f7f2}
+.google-login span{font-weight:850;font-size:22px;color:#4285f4}
+.login-separator{text-align:center;display:flex;align-items:center;gap:10px;margin:23px 0;color:#82948a;font-size:12px}
+.login-separator:before,.login-separator:after{content:"";height:1px;flex:1;background:#dce6dd}
+.login-form .primary{min-height:48px}
+.login-footer{font-size:12px;margin-top:20px}
+.admin-registration{margin-top:12px}
+.admin-registration .muted{margin:10px 0}
+.admin-actions{display:flex;flex-wrap:wrap;gap:10px}
+.admin-actions button,#admin-refresh{padding:10px 14px;border:1px solid #cadbd0;border-radius:11px;background:#fff;cursor:pointer}
+.admin-actions .primary{background:#c7e6af;margin-top:0}
+@media(max-width:600px){.login-card{padding:22px}.admin-actions button{flex:1;min-width:90px}}
