@@ -1,9 +1,0 @@
-# Config as Code — serviço Railway "gt06-ingest"
-# Settings → Config file path: railway.gt06.toml
-
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.gt06"
-
-[deploy]
-restartPolicyType = "ON_FAILURE"
